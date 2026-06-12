@@ -13,9 +13,12 @@ from pydantic import BaseModel
 from typing import Optional
 
 from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content
-from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig
+from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
+from modules.content.ingest import ContentIngestor
+from modules.content.video_generator import VideoGenerator
+from modules.content.audio_generator import AudioGenerator
 
 app = FastAPI(title="Clipping Whop", version="1.0.0")
 security = HTTPBearer(auto_error=False)
@@ -187,6 +190,80 @@ async def get_stats(user: dict = Depends(get_current_user)):
         "published_content": sum(1 for c in content if c["status"] == "published"),
         "errors": sum(1 for c in content if c["status"] == "error"),
     }
+
+
+# --- Content files ---
+
+import os
+
+@app.get("/api/content-files")
+async def list_content_files(user: dict = Depends(get_current_user)):
+    files = []
+    for ext in ("*.mp4", "*.mp3", "*.jpg", "*.png"):
+        for p in [PROCESSED_DIR, RAW_DIR]:
+            if p.exists():
+                for f in p.rglob(ext):
+                    size = f.stat().st_size
+                    rel = f.relative_to(Path(__file__).parent)
+                    files.append({
+                        "name": f.name,
+                        "path": str(rel.as_posix()),
+                        "size": size,
+                        "size_str": f"{size / 1024 / 1024:.1f} MB" if size > 1024*1024 else f"{size / 1024:.1f} KB",
+                        "ext": f.suffix.lower(),
+                        "modified": f.stat().st_mtime,
+                    })
+    files.sort(key=lambda x: x["modified"], reverse=True)
+    return files
+
+
+class GenerateFromURLRequest(BaseModel):
+    url: str
+    start_time: float = 10
+    duration: float = 30
+
+
+@app.post("/api/generate-from-url")
+async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(get_current_user)):
+    try:
+        downloaded = ContentIngestor.download_youtube_replay(
+            req.url,
+            max_duration=600,
+            output_dir=RAW_DIR,
+        )
+        if not downloaded:
+            raise HTTPException(400, "Failed to download video from URL")
+
+        clip = VideoGenerator.generate_clip(
+            input_video=downloaded,
+            output_name=f"custom_{int(time.time())}",
+            start_time=req.start_time,
+            duration=req.duration,
+            add_intro=True,
+            add_outro=True,
+        )
+        if not clip:
+            raise HTTPException(500, "Failed to create clip")
+
+        vo = AudioGenerator.generate_voiceover(output_name=f"vo_custom_{int(time.time())}")
+        if vo:
+            mixed = AudioGenerator.mix_audio_with_video(clip, vo, f"final_{int(time.time())}")
+            if mixed:
+                clip = mixed
+
+        log_content(user["id"], f"Custom clip from URL", "video", "manual", "created", file_path=str(clip))
+        return {"ok": True, "file": str(clip.relative_to(Path(__file__).parent).as_posix()), "name": clip.name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Generation error: {e}")
+
+
+# --- Serve storage files ---
+
+STORAGE_DIR = Path(__file__).parent / "storage"
+if STORAGE_DIR.exists():
+    app.mount("/storage", StaticFiles(directory=str(STORAGE_DIR)), name="storage")
 
 
 # --- Web UI ---

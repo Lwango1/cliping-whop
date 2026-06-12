@@ -57,6 +57,7 @@
         <div class="nav-item active" onclick="showPage('overview')"><span>📊</span><span>Vue d'ensemble</span></div>
         <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
         <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
+        <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
         <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Campagnes</span></div>
         <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Historique</span></div>
         <div style="flex:1"></div>
@@ -175,6 +176,36 @@
             </div>
         </div>
 
+        <!-- Content -->
+        <div id="page-content" class="page">
+            <h2>Contenu generer</h2>
+
+            <div class="card">
+                <h4>Creer un clip a partir d'une URL YouTube</h4>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label">URL de la video YouTube</label>
+                        <input id="ytUrlInput" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Debut (secondes)</label>
+                        <input id="ytStartInput" type="number" class="form-control" value="10">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Duree (secondes)</label>
+                        <input id="ytDurationInput" type="number" class="form-control" value="30">
+                    </div>
+                </div>
+                <button class="btn btn-gold" onclick="generateFromUrl()">🎬 Generer le clip</button>
+                <div id="urlGenResult" class="mt-2" style="font-size:14px"></div>
+            </div>
+
+            <div class="card">
+                <h4>Fichiers generes</h4>
+                <div id="contentGallery"><p style="color:#8892b0">Chargement...</p></div>
+            </div>
+        </div>
+
         <!-- Campaigns -->
         <div id="page-campaigns" class="page">
             <h2>Campagnes Whop</h2>
@@ -214,6 +245,7 @@
             if (name === 'campaigns') loadCampaigns();
             if (name === 'logs') loadLogs();
             if (name === 'accounts') loadAccounts();
+            if (name === 'content') loadContent();
         }
 
         async function apiGet(url) {
@@ -328,6 +360,53 @@
                 el.innerHTML = `<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Titre</th><th>Plateforme</th><th>Budget</th><th>Status</th><th>Date</th></tr></thead><tbody>${list.map(c => `<tr><td>${c.title}</td><td>${c.platform}</td><td>${c.budget || '-'}</td><td><span class="badge-status ${c.status === 'applied' ? 'badge-success' : 'badge-warning'}">${c.status}</span></td><td>${c.applied_at ? new Date(c.applied_at*1000).toLocaleDateString() : '-'}</td></tr>`).join('')}</tbody></table></div>`;
             } else {
                 el.innerHTML = '<p style="color:#8892b0">Aucune campagne pour le moment.</p>';
+            }
+        }
+
+        // --- Content ---
+        async function loadContent() {
+            const files = await apiGet('/api/content-files');
+            const el = document.getElementById('contentGallery');
+            if (!files || !files.length) {
+                el.innerHTML = '<p style="color:#8892b0">Aucun fichier genere pour le moment.</p>';
+                return;
+            }
+            let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Fichier</th><th>Taille</th><th>Type</th><th>Apercu</th></tr></thead><tbody>';
+            files.slice(0, 30).forEach(f => {
+                const preview = f.ext === '.mp4'
+                    ? `<video controls style="max-width:180px;max-height:100px;border-radius:4px"><source src="/${f.path}"></video>`
+                    : f.ext === '.mp3'
+                    ? `<audio controls style="max-width:180px"><source src="/${f.path}"></audio>`
+                    : `<img src="/${f.path}" style="max-width:100px;max-height:60px;border-radius:4px">`;
+                html += `<tr><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</td><td>${f.size_str}</td><td>${f.ext}</td><td>${preview}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+            el.innerHTML = html;
+        }
+
+        async function generateFromUrl() {
+            const url = document.getElementById('ytUrlInput').value.trim();
+            const start = parseFloat(document.getElementById('ytStartInput').value) || 10;
+            const duration = parseFloat(document.getElementById('ytDurationInput').value) || 30;
+            if (!url) { document.getElementById('urlGenResult').innerHTML = '<span style="color:#f87171">Entrez une URL YouTube</span>'; return; }
+
+            const res = document.getElementById('urlGenResult');
+            res.innerHTML = '<span style="color:#fbbf24">Telechargement et generation en cours...</span>';
+            try {
+                const r = await fetch('/api/generate-from-url', {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ url, start_time: start, duration }),
+                });
+                const data = await r.json();
+                if (data.ok) {
+                    res.innerHTML = `<span style="color:#4ade80">Clip cree !</span> <a href="/${data.file}" target="_blank" style="color:#ffd700">Voir la video</a>`;
+                    loadContent();
+                } else {
+                    res.innerHTML = `<span style="color:#f87171">Erreur: ${data.detail || 'inconnue'}</span>`;
+                }
+            } catch(e) {
+                res.innerHTML = '<span style="color:#f87171">Erreur de connexion</span>';
             }
         }
 
