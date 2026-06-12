@@ -31,12 +31,25 @@ class AudioGenerator:
         try:
             import edge_tts
             import asyncio
+            import threading
 
             async def _run():
                 communicate = edge_tts.Communicate(text, voice)
                 await communicate.save(str(output_path))
 
-            asyncio.run(_run())
+            try:
+                loop = asyncio.get_running_loop()
+                if loop.is_running():
+                    new_loop = asyncio.new_event_loop()
+                    t = threading.Thread(target=new_loop.run_until_complete, args=(_run(),))
+                    t.start()
+                    t.join()
+                    new_loop.close()
+                else:
+                    asyncio.run(_run())
+            except RuntimeError:
+                asyncio.run(_run())
+
             print(f"[AudioGen] Voiceover created: {output_path.name}")
             return output_path
 

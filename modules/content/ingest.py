@@ -103,7 +103,10 @@ class ContentIngestor:
         output_dir = output_dir or RAW_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        output_template = str(output_dir / "%(title)s.%(ext)s")
+        import tempfile
+        temp_dir = output_dir / f"dl_{int(time.time())}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_template = str(temp_dir / "%(title)s.%(ext)s")
 
         is_url = query.startswith("http://") or query.startswith("https://")
         if is_url:
@@ -113,30 +116,49 @@ class ContentIngestor:
 
         try:
             result = run_ytdlp([
-                "--max-filesize", "100M",
+                "--max-filesize", "500M",
                 "--match-filter", f"duration < {max_duration}",
-                "-f", "bestvideo[height<=720]+bestaudio/best[height<=720]",
+                "-f", "best[height<=720]",
                 "--merge-output-format", "mp4",
-                "-o", output_template,
+                "-o", temp_template,
                 *search_args,
                 "--no-playlist",
                 "--quiet",
-            ], timeout=120)
+            ], timeout=180)
 
             if result.returncode != 0:
                 err = result.stderr.decode("utf-8", errors="replace")[:300]
                 print(f"[Ingest] yt-dlp failed: {err}")
+                try: import shutil; shutil.rmtree(temp_dir, ignore_errors=True)
+                except: pass
                 return None
 
-            files = list(output_dir.glob("*.mp4"))
-            if files:
-                latest = max(files, key=lambda f: f.stat().st_mtime)
-                print(f"[Ingest] Downloaded: {latest.name}")
-                return latest
-            return None
+            files = list(temp_dir.rglob("*"))
+            video_file = None
+            for f in files:
+                if f.suffix.lower() in (".mp4", ".webm", ".mkv", ".mov", ".avi") and f.stat().st_size > 100000:
+                    video_file = f
+                    break
+
+            if not video_file:
+                print("[Ingest] No video file found in download")
+                try: import shutil; shutil.rmtree(temp_dir, ignore_errors=True)
+                except: pass
+                return None
+
+            final_path = output_dir / video_file.name
+            import shutil
+            shutil.move(str(video_file), str(final_path))
+            try: shutil.rmtree(temp_dir, ignore_errors=True)
+            except: pass
+
+            print(f"[Ingest] Downloaded: {final_path.name}")
+            return final_path
 
         except Exception as e:
             print(f"[Ingest] Download failed: {e}")
+            try: import shutil; shutil.rmtree(temp_dir, ignore_errors=True)
+            except: pass
             return None
 
     @staticmethod
