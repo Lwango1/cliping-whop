@@ -144,12 +144,11 @@ async def run_pipeline(user: dict = Depends(get_current_user)):
     cfg = user_to_config(user)
     pipeline = ContentPipeline(cfg)
     try:
-        results = pipeline.run_daily_pipeline()
-        if results.get("clips_created") > 0:
-            log_content(user["id"], "Pipeline run", "video", "all", "created")
+        results = pipeline.run_full_pipeline()
+        log_content(user["id"], "Pipeline complete", "full", "all", "created")
         return results
     except Exception as e:
-        log_content(user["id"], "Pipeline run", "video", "all", "error", error=str(e))
+        log_content(user["id"], "Pipeline run", "full", "all", "error", error=str(e))
         raise HTTPException(500, f"Pipeline error: {e}")
 
 

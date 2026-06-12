@@ -13,6 +13,7 @@ from modules.publishing.tiktok import TikTokPublisher
 from modules.publishing.youtube import YouTubePublisher
 from modules.publishing.instagram import InstagramPublisher
 from modules.publishing.facebook import FacebookPublisher
+from modules.whop.auto_apply import WhopAutoApply
 
 
 class ContentPipeline:
@@ -29,8 +30,32 @@ class ContentPipeline:
         self.instagram = InstagramPublisher(user_cfg.instagram)
         self.facebook = FacebookPublisher(user_cfg.facebook)
 
+    def run_full_pipeline(self) -> dict:
+        results = {"applied_campaigns": 0, "clips_created": 0, "posts_published": 0, "whop_campaigns_found": 0}
+
+        print("\n=== PHASE 1: Whop - Recherche et postulation aux campagnes ===")
+        if self.cfg.whop.email:
+            try:
+                applier = WhopAutoApply(self.cfg, headless=True)
+                applier.run_auto_apply(max_applications=5)
+                print("[Pipeline] Whop phase complete")
+            except Exception as e:
+                print(f"[Pipeline] Whop error (non-blocking): {e}")
+        else:
+            print("[Pipeline] Whop non configure, passage a la creation de contenu")
+
+        print("\n=== PHASE 2: Creation de contenu ===")
+        content_results = self._create_content()
+        results["clips_created"] = content_results.get("clips_created", 0)
+        results["posts_published"] = content_results.get("posts_published", 0)
+
+        return results
+
     def run_daily_pipeline(self) -> dict:
-        results = {"applied_campaigns": 0, "clips_created": 0, "posts_published": 0}
+        return self.run_full_pipeline()
+
+    def _create_content(self) -> dict:
+        results = {"clips_created": 0, "posts_published": 0}
 
         events = self.ingestor.fetch_sports_events("canada", limit=3)
         if not events:

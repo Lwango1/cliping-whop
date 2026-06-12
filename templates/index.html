@@ -39,8 +39,14 @@
 
             <!-- Login Form -->
             <div id="loginForm">
-                <input id="loginUsername" class="form-control mb-3" placeholder="Nom d'utilisateur">
-                <input id="loginPassword" type="password" class="form-control mb-3" placeholder="Mot de passe">
+                <div class="mb-3">
+                    <label class="form-label" style="color:#8892b0;font-size:13px">Nom d'utilisateur</label>
+                    <input id="loginUsername" class="form-control" placeholder="Ex: john, user123">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#8892b0;font-size:13px">Mot de passe</label>
+                    <input id="loginPassword" type="password" class="form-control" placeholder="Votre mot de passe">
+                </div>
                 <button id="loginBtn" class="btn btn-gold w-100 mb-2">Se connecter</button>
                 <p class="text-center mb-0" style="color:#8892b0;font-size:13px">
                     Pas encore de compte ? <span class="tab-link" onclick="showRegister()" style="color:#ffd700;cursor:pointer;text-decoration:underline">Creer un compte</span>
@@ -49,10 +55,22 @@
 
             <!-- Register Form -->
             <div id="registerForm" class="d-none">
-                <input id="regUsername" class="form-control mb-3" placeholder="Nom d'utilisateur">
-                <input id="regEmail" class="form-control mb-3" placeholder="Adresse email">
-                <input id="regPassword" type="password" class="form-control mb-3" placeholder="Mot de passe">
-                <input id="regPassword2" type="password" class="form-control mb-3" placeholder="Confirmer le mot de passe">
+                <div class="mb-3">
+                    <label class="form-label" style="color:#8892b0;font-size:13px">Nom d'utilisateur</label>
+                    <input id="regUsername" class="form-control" placeholder="Ex: john, user123">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#8892b0;font-size:13px">Adresse email</label>
+                    <input id="regEmail" class="form-control" placeholder="Ex: john@email.com">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#8892b0;font-size:13px">Mot de passe (min 6 caracteres)</label>
+                    <input id="regPassword" type="password" class="form-control" placeholder="Ex: monMotDePasse123">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color:#8892b0;font-size:13px">Confirmer le mot de passe</label>
+                    <input id="regPassword2" type="password" class="form-control" placeholder="Tapez le meme mot de passe">
+                </div>
                 <button id="registerBtn" class="btn btn-gold w-100 mb-2">Creer mon compte</button>
                 <p class="text-center mb-0" style="color:#8892b0;font-size:13px">
                     Deja un compte ? <span class="tab-link" onclick="showLogin()" style="color:#ffd700;cursor:pointer;text-decoration:underline">Se connecter</span>
