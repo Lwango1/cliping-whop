@@ -12,62 +12,92 @@
         .auth-box .sub { color: #8892b0; font-size: 14px; margin-bottom: 24px; }
         .form-control { background: #1a2340; border: 1px solid #2a3655; color: #e0e0e0; }
         .form-control:focus { background: #1a2340; border-color: #ffd700; color: #e0e0e0; box-shadow: 0 0 0 0.2rem rgba(255,215,0,0.15); }
-        .btn-gold { background: #ffd700; color: #0a0e1a; font-weight: 600; border: none; }
+        .btn-gold { background: #ffd700; color: #0a0e1a; font-weight: 600; border: none; padding: 10px; }
         .btn-gold:hover { background: #e6c200; color: #0a0e1a; }
-        .btn-ghost { background: transparent; border: 1px solid #2a3655; color: #8892b0; }
-        .btn-ghost:hover { border-color: #ffd700; color: #ffd700; }
-        .toggle-link { color: #ffd700; cursor: pointer; text-decoration: underline; }
         .alert { background: #1a2340; border: 1px solid #2a3655; color: #e0e0e0; }
-        .logo { font-size: 32px; margin-bottom: 8px; }
+        .logo { font-size: 40px; margin-bottom: 8px; }
+        .tabs { display: flex; margin-bottom: 24px; background: #1a2340; border-radius: 8px; overflow: hidden; }
+        .tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; color: #8892b0; font-weight: 500; transition: all 0.2s; }
+        .tab.active { background: #ffd700; color: #0a0e1a; font-weight: 600; }
+        .tab:not(.active):hover { background: #2a3655; color: #e0e0e0; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="loginBox" class="auth-box">
+        <div class="auth-box">
             <div class="text-center logo">⚽</div>
             <h1 class="text-center">Clipping Whop</h1>
-            <p class="sub text-center">Connexion</p>
-            <div id="loginAlert" class="alert alert-danger d-none"></div>
-            <input id="loginUsername" class="form-control mb-3" placeholder="Nom d'utilisateur">
-            <input id="loginPassword" type="password" class="form-control mb-3" placeholder="Mot de passe">
-            <button id="loginBtn" class="btn btn-gold w-100 mb-3">Se connecter</button>
-            <p class="text-center mb-0">Pas de compte ? <span class="toggle-link" onclick="showRegister()">S'inscrire</span></p>
-        </div>
+            <p class="sub text-center">Creez et publiez du contenu automatiquement</p>
+            
+            <div class="tabs">
+                <div id="tabLogin" class="tab active" onclick="showLogin()">Connexion</div>
+                <div id="tabRegister" class="tab" onclick="showRegister()">Inscription</div>
+            </div>
 
-        <div id="registerBox" class="auth-box d-none">
-            <div class="text-center logo">⚽</div>
-            <h1 class="text-center">Clipping Whop</h1>
-            <p class="sub text-center">Créer un compte</p>
+            <div id="loginAlert" class="alert alert-danger d-none"></div>
             <div id="registerAlert" class="alert alert-danger d-none"></div>
-            <input id="regUsername" class="form-control mb-3" placeholder="Nom d'utilisateur">
-            <input id="regEmail" class="form-control mb-3" placeholder="Email">
-            <input id="regPassword" type="password" class="form-control mb-3" placeholder="Mot de passe">
-            <input id="regPassword2" type="password" class="form-control mb-3" placeholder="Confirmer le mot de passe">
-            <button id="registerBtn" class="btn btn-gold w-100 mb-3">S'inscrire</button>
-            <p class="text-center mb-0">Déjà un compte ? <span class="toggle-link" onclick="showLogin()">Se connecter</span></p>
+
+            <!-- Login Form -->
+            <div id="loginForm">
+                <input id="loginUsername" class="form-control mb-3" placeholder="Nom d'utilisateur">
+                <input id="loginPassword" type="password" class="form-control mb-3" placeholder="Mot de passe">
+                <button id="loginBtn" class="btn btn-gold w-100 mb-2">Se connecter</button>
+                <p class="text-center mb-0" style="color:#8892b0;font-size:13px">
+                    Pas encore de compte ? <span class="tab-link" onclick="showRegister()" style="color:#ffd700;cursor:pointer;text-decoration:underline">Creer un compte</span>
+                </p>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerForm" class="d-none">
+                <input id="regUsername" class="form-control mb-3" placeholder="Nom d'utilisateur">
+                <input id="regEmail" class="form-control mb-3" placeholder="Adresse email">
+                <input id="regPassword" type="password" class="form-control mb-3" placeholder="Mot de passe">
+                <input id="regPassword2" type="password" class="form-control mb-3" placeholder="Confirmer le mot de passe">
+                <button id="registerBtn" class="btn btn-gold w-100 mb-2">Creer mon compte</button>
+                <p class="text-center mb-0" style="color:#8892b0;font-size:13px">
+                    Deja un compte ? <span class="tab-link" onclick="showLogin()" style="color:#ffd700;cursor:pointer;text-decoration:underline">Se connecter</span>
+                </p>
+            </div>
         </div>
     </div>
 
     <script>
-        const API = window.location.origin;
+        function showLogin() {
+            document.getElementById('loginForm').classList.remove('d-none');
+            document.getElementById('registerForm').classList.add('d-none');
+            document.getElementById('tabLogin').classList.add('active');
+            document.getElementById('tabRegister').classList.remove('active');
+        }
+        function showRegister() {
+            document.getElementById('registerForm').classList.remove('d-none');
+            document.getElementById('loginForm').classList.add('d-none');
+            document.getElementById('tabRegister').classList.add('active');
+            document.getElementById('tabLogin').classList.remove('active');
+        }
 
-        function showRegister() { document.getElementById('loginBox').classList.add('d-none'); document.getElementById('registerBox').classList.remove('d-none'); }
-        function showLogin() { document.getElementById('registerBox').classList.add('d-none'); document.getElementById('loginBox').classList.remove('d-none'); }
-
-        function alert(el, msg) { const a = document.getElementById(el); a.textContent = msg; a.classList.remove('d-none'); setTimeout(() => a.classList.add('d-none'), 4000); }
+        function alert(el, msg) { 
+            const a = document.getElementById(el); 
+            a.textContent = msg; 
+            a.classList.remove('d-none'); 
+            setTimeout(() => a.classList.add('d-none'), 4000); 
+        }
 
         document.getElementById('loginBtn').addEventListener('click', async () => {
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
-            if (!username || !password) return alert('loginAlert', 'Remplis tous les champs');
+            if (!username || !password) return alert('loginAlert', 'Veuillez remplir tous les champs');
             try {
-                const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-                if (!r.ok) { const e = await r.json(); return alert('loginAlert', e.detail || 'Erreur'); }
+                const r = await fetch('/api/login', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ username, password }) 
+                });
+                if (!r.ok) { const e = await r.json(); return alert('loginAlert', e.detail || 'Identifiants incorrects'); }
                 const data = await r.json();
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('username', data.username);
                 window.location.href = '/app';
-            } catch (e) { alert('loginAlert', 'Erreur réseau'); }
+            } catch (e) { alert('loginAlert', 'Erreur de connexion au serveur'); }
         });
 
         document.getElementById('registerBtn').addEventListener('click', async () => {
@@ -75,21 +105,26 @@
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
             const password2 = document.getElementById('regPassword2').value;
-            if (!username || !email || !password) return alert('registerAlert', 'Remplis tous les champs');
+            if (!username || !email || !password) return alert('registerAlert', 'Veuillez remplir tous les champs');
             if (password !== password2) return alert('registerAlert', 'Les mots de passe ne correspondent pas');
-            if (password.length < 6) return alert('registerAlert', 'Mot de passe trop court (6+ car.)');
+            if (password.length < 6) return alert('registerAlert', 'Mot de passe trop court (min 6 caracteres)');
             try {
-                const r = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, email, password }) });
-                if (!r.ok) { const e = await r.json(); return alert('registerAlert', e.detail || 'Erreur'); }
+                const r = await fetch('/api/register', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ username, email, password }) 
+                });
+                if (!r.ok) { const e = await r.json(); return alert('registerAlert', e.detail || 'Erreur lors de l inscription'); }
                 const data = await r.json();
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('username', data.username);
                 window.location.href = '/app';
-            } catch (e) { alert('registerAlert', 'Erreur réseau'); }
+            } catch (e) { alert('registerAlert', 'Erreur de connexion au serveur'); }
         });
 
         document.getElementById('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
         document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+        document.getElementById('regPassword2').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('registerBtn').click(); });
     </script>
 </body>
 </html>
