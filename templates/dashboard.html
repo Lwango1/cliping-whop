@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Clipping Whop</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0e1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .sidebar { position: fixed; top: 0; left: 0; width: 240px; height: 100vh; background: #101624; border-right: 1px solid #1e2a45; padding: 24px 16px; overflow-y: auto; }
+        .sidebar .logo { font-size: 20px; font-weight: 700; color: #ffd700; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+        .sidebar .logo span { font-size: 24px; }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #8892b0; cursor: pointer; transition: all 0.2s; margin-bottom: 4px; }
+        .nav-item:hover, .nav-item.active { background: #1a2340; color: #ffd700; }
+        .nav-item.active { border-left: 3px solid #ffd700; }
+        .main { margin-left: 240px; padding: 32px; max-width: 1200px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        h2 { font-size: 24px; margin-bottom: 20px; color: #fff; }
+        .card { background: #141b2d; border: 1px solid #1e2a45; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .card h4 { color: #8892b0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .card .value { font-size: 28px; font-weight: 700; color: #fff; }
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .form-label { color: #8892b0; font-size: 13px; }
+        .form-control { background: #1a2340; border: 1px solid #2a3655; color: #e0e0e0; }
+        .form-control:focus { background: #1a2340; border-color: #ffd700; color: #e0e0e0; box-shadow: 0 0 0 0.2rem rgba(255,215,0,0.15); }
+        .btn-gold { background: #ffd700; color: #0a0e1a; font-weight: 600; border: none; }
+        .btn-gold:hover { background: #e6c200; color: #0a0e1a; }
+        .btn-danger-ghost { background: transparent; border: 1px solid #ff4d4d; color: #ff4d4d; }
+        .btn-danger-ghost:hover { background: #ff4d4d; color: #fff; }
+        .btn-ghost { background: transparent; border: 1px solid #2a3655; color: #8892b0; }
+        .btn-ghost:hover { border-color: #ffd700; color: #ffd700; }
+        .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-success { background: #1a3a2a; color: #4ade80; }
+        .badge-warning { background: #3a2a1a; color: #fbbf24; }
+        .badge-error { background: #3a1a1a; color: #f87171; }
+        .table { color: #e0e0e0; }
+        .table th { color: #8892b0; font-weight: 500; border-color: #1e2a45; }
+        .table td { border-color: #1e2a45; }
+        .table-hover tbody tr:hover { background: #1a2340; }
+        .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+        .toast-custom { background: #141b2d; border: 1px solid #2a3655; color: #e0e0e0; }
+        .user-badge { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1a2340; border-radius: 8px; color: #8892b0; margin-top: auto; }
+        .user-badge .name { color: #fff; }
+        textarea.form-control { font-family: monospace; font-size: 13px; }
+        .platform-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: #1a2340; }
+        .spinner-border { width: 1rem; height: 1rem; }
+        @media (max-width: 768px) { .sidebar { width: 60px; padding: 16px 8px; } .sidebar .logo span:first-child { display: none; } .sidebar .nav-item span:last-child { display: none; } .main { margin-left: 60px; padding: 16px; } }
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="sidebar">
+        <div class="logo"><span>⚽</span><span>Clipping Whop</span></div>
+        <div class="nav-item active" onclick="showPage('overview')"><span>📊</span><span>Vue d'ensemble</span></div>
+        <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
+        <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
+        <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Campagnes</span></div>
+        <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Historique</span></div>
+        <div style="flex:1"></div>
+        <div class="user-badge">
+            <span>👤</span>
+            <span class="name" id="userDisplay">Utilisateur</span>
+            <span style="cursor:pointer;margin-left:auto" onclick="logout()" title="Déconnexion">🚪</span>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- Overview -->
+        <div id="page-overview" class="page active">
+            <h2>Vue d'ensemble</h2>
+            <div class="stat-grid" id="statsGrid">
+                <div class="card"><h4>Campagnes</h4><div class="value" id="statCampaigns">-</div></div>
+                <div class="card"><h4>Postulées</h4><div class="value" id="statApplied">-</div></div>
+                <div class="card"><h4>Contenus créés</h4><div class="value" id="statContent">-</div></div>
+                <div class="card"><h4>Publiés</h4><div class="value" id="statPublished">-</div></div>
+                <div class="card"><h4>Erreurs</h4><div class="value" id="statErrors">-</div></div>
+            </div>
+            <div class="card">
+                <h4>Dernières activités</h4>
+                <div id="recentLogs"><p style="color:#8892b0">Chargement...</p></div>
+            </div>
+        </div>
+
+        <!-- Accounts -->
+        <div id="page-accounts" class="page">
+            <h2>Configuration des comptes</h2>
+            <div class="card">
+                <h4>Whop</h4>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><label class="form-label">Email</label><input id="whopEmail" class="form-control" placeholder="email@example.com"></div>
+                    <div class="col-md-6"><label class="form-label">Mot de passe</label><input id="whopPassword" type="password" class="form-control" placeholder="********"></div>
+                </div>
+                <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
+                <span id="accountSaveMsg" style="color:#4ade80;margin-left:12px;display:none">✓ Enregistré</span>
+            </div>
+            <div class="card">
+                <h4>TikTok</h4>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><label class="form-label">Session ID</label><input id="tiktokSession" class="form-control" placeholder="sessionid=..."></div>
+                    <div class="col-md-6"><label class="form-label">CSRF Token</label><input id="tiktokCsrf" class="form-control" placeholder="csrf_token=..."></div>
+                </div>
+                <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
+            </div>
+            <div class="card">
+                <h4>YouTube</h4>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4"><label class="form-label">Client ID</label><input id="ytClientId" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">Client Secret</label><input id="ytClientSecret" class="form-control" type="password"></div>
+                    <div class="col-md-4"><label class="form-label">Refresh Token</label><input id="ytRefreshToken" class="form-control"></div>
+                </div>
+                <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
+            </div>
+            <div class="card">
+                <h4>Instagram</h4>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><label class="form-label">Nom d'utilisateur</label><input id="igUsername" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">Mot de passe</label><input id="igPassword" class="form-control" type="password"></div>
+                </div>
+                <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
+            </div>
+            <div class="card">
+                <h4>Facebook</h4>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><label class="form-label">Page ID</label><input id="fbPageId" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">Access Token</label><input id="fbToken" class="form-control"></div>
+                </div>
+                <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
+            </div>
+            <div class="card">
+                <h4>Paramètres</h4>
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">Posts par jour</label><input id="postsPerDay" type="number" class="form-control" value="3"></div>
+                    <div class="col-md-8"><label class="form-label">Mots-clés Whop (JSON)</label><input id="campaignKeywords" class="form-control" value='["betway","world cup","canada"]'></div>
+                </div>
+                <button class="btn btn-gold btn-sm mt-3" onclick="saveAccounts()">Enregistrer</button>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div id="page-actions" class="page">
+            <h2>Actions</h2>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card text-center">
+                        <h4>Pipeline de contenu</h4>
+                        <p style="color:#8892b0;font-size:14px">Récupère les matchs, télécharge les replays, crée les clips, génère les voix off et thumbnails.</p>
+                        <button id="runPipelineBtn" class="btn btn-gold w-100" onclick="runPipeline()">🚀 Lancer la pipeline</button>
+                        <div id="pipelineResult" class="mt-2" style="font-size:14px"></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card text-center">
+                        <h4>Whop Auto-Apply</h4>
+                        <p style="color:#8892b0;font-size:14px">Scrape Whop, trouve les campagnes Betway/World Cup et postule automatiquement.</p>
+                        <button id="whopApplyBtn" class="btn btn-gold w-100" onclick="whopApply()">📋 Postuler aux campagnes</button>
+                        <div id="whopResult" class="mt-2" style="font-size:14px"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaigns -->
+        <div id="page-campaigns" class="page">
+            <h2>Campagnes Whop</h2>
+            <div class="card"><div id="campaignsList"><p style="color:#8892b0">Aucune campagne pour le moment.</p></div></div>
+        </div>
+
+        <!-- Logs -->
+        <div id="page-logs" class="page">
+            <h2>Historique</h2>
+            <div class="card"><div id="logsList"><p style="color:#8892b0">Aucun historique.</p></div></div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+        let TOKEN = localStorage.getItem('token');
+        if (!TOKEN) { window.location.href = '/'; }
+
+        function getHeaders() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }; }
+
+        function toast(msg, type='success') {
+            const c = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = `toast-custom toast align-items-center border-0 show`;
+            t.role = 'alert';
+            t.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+        }
+
+        function showPage(name) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`page-${name}`).classList.add('active');
+            document.querySelector(`.nav-item[onclick="showPage('${name}')"]`).classList.add('active');
+            if (name === 'overview') loadOverview();
+            if (name === 'campaigns') loadCampaigns();
+            if (name === 'logs') loadLogs();
+            if (name === 'accounts') loadAccounts();
+        }
+
+        async function apiGet(url) {
+            try {
+                const r = await fetch(url, { headers: getHeaders() });
+                if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/'; }
+                return await r.json();
+            } catch(e) { return null; }
+        }
+
+        async function apiPost(url, data) {
+            try {
+                const r = await fetch(url, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data || {}) });
+                if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/'; }
+                return await r.json();
+            } catch(e) { return null; }
+        }
+
+        async function apiPut(url, data) {
+            try {
+                const r = await fetch(url, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data || {}) });
+                if (r.status === 401) { localStorage.removeItem('token'); window.location.href = '/'; }
+                return await r.json();
+            } catch(e) { return null; }
+        }
+
+        // --- Overview ---
+        async function loadOverview() {
+            const s = await apiGet('/api/stats');
+            if (s) {
+                document.getElementById('statCampaigns').textContent = s.total_campaigns;
+                document.getElementById('statApplied').textContent = s.applied_campaigns;
+                document.getElementById('statContent').textContent = s.total_content;
+                document.getElementById('statPublished').textContent = s.published_content;
+                document.getElementById('statErrors').textContent = s.errors;
+            }
+            const logs = await apiGet('/api/content-log');
+            const el = document.getElementById('recentLogs');
+            if (logs && logs.length) {
+                el.innerHTML = logs.slice(0, 5).map(l => `<div style="padding:6px 0;border-bottom:1px solid #1e2a45;font-size:14px">${l.content_type || '?'} - ${l.status} ${l.error ? '⚠ '+l.error : ''}</div>`).join('');
+            } else {
+                el.innerHTML = '<p style="color:#8892b0">Aucune activité récente.</p>';
+            }
+        }
+
+        // --- Accounts ---
+        async function loadAccounts() {
+            const me = await apiGet('/api/me');
+            if (!me) return;
+            document.getElementById('userDisplay').textContent = me.username || 'Utilisateur';
+            document.getElementById('whopEmail').value = me.whop_email || '';
+            document.getElementById('whopPassword').value = me.whop_password || '';
+            document.getElementById('tiktokSession').value = me.tiktok_session_id || '';
+            document.getElementById('tiktokCsrf').value = me.tiktok_csrf_token || '';
+            document.getElementById('ytClientId').value = me.youtube_client_id || '';
+            document.getElementById('ytClientSecret').value = me.youtube_client_secret || '';
+            document.getElementById('ytRefreshToken').value = me.youtube_refresh_token || '';
+            document.getElementById('igUsername').value = me.instagram_username || '';
+            document.getElementById('igPassword').value = me.instagram_password || '';
+            document.getElementById('fbPageId').value = me.facebook_page_id || '';
+            document.getElementById('fbToken').value = me.facebook_access_token || '';
+            document.getElementById('postsPerDay').value = me.posts_per_day || 3;
+            document.getElementById('campaignKeywords').value = me.campaign_keywords || '["betway"]';
+        }
+
+        async function saveAccounts() {
+            const data = {
+                whop_email: document.getElementById('whopEmail').value,
+                whop_password: document.getElementById('whopPassword').value,
+                tiktok_session_id: document.getElementById('tiktokSession').value,
+                tiktok_csrf_token: document.getElementById('tiktokCsrf').value,
+                youtube_client_id: document.getElementById('ytClientId').value,
+                youtube_client_secret: document.getElementById('ytClientSecret').value,
+                youtube_refresh_token: document.getElementById('ytRefreshToken').value,
+                instagram_username: document.getElementById('igUsername').value,
+                instagram_password: document.getElementById('igPassword').value,
+                facebook_page_id: document.getElementById('fbPageId').value,
+                facebook_access_token: document.getElementById('fbToken').value,
+                posts_per_day: parseInt(document.getElementById('postsPerDay').value) || 3,
+                campaign_keywords: document.getElementById('campaignKeywords').value,
+            };
+            const r = await apiPut('/api/settings', data);
+            if (r && r.ok) { toast('Comptes enregistrés !'); } else { toast('Erreur', 'error'); }
+        }
+
+        // --- Actions ---
+        async function runPipeline() {
+            const btn = document.getElementById('runPipelineBtn');
+            const res = document.getElementById('pipelineResult');
+            btn.disabled = true; btn.innerHTML = '⏳ En cours...'; res.innerHTML = '';
+            const r = await apiPost('/api/run-pipeline');
+            if (r) {
+                res.innerHTML = `✅ ${r.clips_created || 0} clips, ${r.posts_published || 0} publiés`;
+                toast('Pipeline terminée !');
+            } else {
+                res.innerHTML = '❌ Erreur';
+                toast('Erreur pipeline', 'error');
+            }
+            btn.disabled = false; btn.innerHTML = '🚀 Lancer la pipeline';
+        }
+
+        async function whopApply() {
+            const btn = document.getElementById('whopApplyBtn');
+            const res = document.getElementById('whopResult');
+            btn.disabled = true; btn.innerHTML = '⏳ En cours...'; res.innerHTML = '';
+            const r = await apiPost('/api/whop-apply');
+            if (r && r.ok) {
+                res.innerHTML = '✅ Postulé avec succès';
+                toast('Whop apply terminé !');
+            } else {
+                res.innerHTML = '❌ ' + (r?.detail || 'Erreur');
+            }
+            btn.disabled = false; btn.innerHTML = '📋 Postuler aux campagnes';
+        }
+
+        // --- Campaigns ---
+        async function loadCampaigns() {
+            const list = await apiGet('/api/campaigns');
+            const el = document.getElementById('campaignsList');
+            if (list && list.length) {
+                el.innerHTML = `<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Titre</th><th>Plateforme</th><th>Budget</th><th>Status</th><th>Date</th></tr></thead><tbody>${list.map(c => `<tr><td>${c.title}</td><td>${c.platform}</td><td>${c.budget || '-'}</td><td><span class="badge-status ${c.status === 'applied' ? 'badge-success' : 'badge-warning'}">${c.status}</span></td><td>${c.applied_at ? new Date(c.applied_at*1000).toLocaleDateString() : '-'}</td></tr>`).join('')}</tbody></table></div>`;
+            } else {
+                el.innerHTML = '<p style="color:#8892b0">Aucune campagne pour le moment.</p>';
+            }
+        }
+
+        // --- Logs ---
+        async function loadLogs() {
+            const list = await apiGet('/api/content-log');
+            const el = document.getElementById('logsList');
+            if (list && list.length) {
+                el.innerHTML = `<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Événement</th><th>Type</th><th>Plateforme</th><th>Status</th><th>Date</th></tr></thead><tbody>${list.map(l => `<tr><td>${l.event_name || '-'}</td><td>${l.content_type}</td><td>${l.platform || '-'}</td><td><span class="badge-status ${l.status === 'published' ? 'badge-success' : l.status === 'error' ? 'badge-error' : 'badge-warning'}">${l.status}</span></td><td>${l.published_at ? new Date(l.published_at*1000).toLocaleDateString() : '-'}</td></tr>`).join('')}</tbody></table></div>`;
+            } else {
+                el.innerHTML = '<p style="color:#8892b0">Aucun historique.</p>';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = '/';
+        }
+
+        loadOverview();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

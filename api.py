@@ -1,0 +1,207 @@
+import json
+import time
+import hashlib
+import secrets
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
+
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
+from typing import Optional
+
+from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content
+from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig
+from pipeline import ContentPipeline
+from modules.whop.auto_apply import WhopAutoApply
+
+app = FastAPI(title="Clipping Whop", version="1.0.0")
+security = HTTPBearer(auto_error=False)
+
+SECRET_KEY = secrets.token_hex(32)
+TOKEN_EXPIRY = 3600  # 1 hour
+tokens: dict[str, dict] = {}  # token -> {user_id, expires}
+
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_password(password: str, hash_: str) -> bool:
+    return hash_password(password) == hash_
+
+
+def gen_token(user_id: int) -> str:
+    token = secrets.token_hex(32)
+    tokens[token] = {"user_id": user_id, "expires": time.time() + TOKEN_EXPIRY}
+    return token
+
+
+def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = credentials.credentials
+    data = tokens.get(token)
+    if not data or data["expires"] < time.time():
+        raise HTTPException(status_code=401, detail="Token expired")
+    user = get_user_by_id(data["user_id"])
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+def user_to_config(user: dict) -> UserConfig:
+    try:
+        keywords = json.loads(user.get("campaign_keywords", '["betway"]'))
+    except (json.JSONDecodeError, TypeError):
+        keywords = ["betway"]
+    try:
+        sources = json.loads(user.get("content_sources", '["youtube_replays"]'))
+    except (json.JSONDecodeError, TypeError):
+        sources = ["youtube_replays"]
+
+    return UserConfig(
+        whop=WhopConfig(email=user.get("whop_email", ""), password=user.get("whop_password", "")),
+        tiktok=TikTokConfig(session_id=user.get("tiktok_session_id", "")),
+        youtube=YouTubeConfig(
+            client_id=user.get("youtube_client_id", ""),
+            client_secret=user.get("youtube_client_secret", ""),
+            refresh_token=user.get("youtube_refresh_token", ""),
+        ),
+        instagram=InstagramConfig(
+            username=user.get("instagram_username", ""),
+            password=user.get("instagram_password", ""),
+        ),
+        facebook=FacebookConfig(
+            page_id=user.get("facebook_page_id", ""),
+            access_token=user.get("facebook_access_token", ""),
+        ),
+        posts_per_day=user.get("posts_per_day", 3),
+        campaign_keywords=keywords,
+        content_sources=sources,
+    )
+
+
+# --- API Routes ---
+
+@app.on_event("startup")
+async def startup():
+    init_db()
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+
+
+@app.post("/api/register")
+async def register(req: RegisterRequest):
+    if get_user_by_username(req.username):
+        raise HTTPException(400, "Username already exists")
+    if get_user_by_email(req.email):
+        raise HTTPException(400, "Email already exists")
+
+    user_id = create_user(req.username, req.email, hash_password(req.password))
+    if not user_id:
+        raise HTTPException(500, "Failed to create user")
+
+    token = gen_token(user_id)
+    return {"token": token, "user_id": user_id, "username": req.username}
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/login")
+async def login(req: LoginRequest):
+    user = get_user_by_username(req.username)
+    if not user or not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(401, "Invalid credentials")
+
+    token = gen_token(user["id"])
+    return {"token": token, "user_id": user["id"], "username": user["username"]}
+
+
+@app.get("/api/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    safe = {k: v for k, v in user.items() if k != "password_hash"}
+    return safe
+
+
+@app.put("/api/settings")
+async def update_settings(data: dict, user: dict = Depends(get_current_user)):
+    update_user(user["id"], **data)
+    return {"ok": True}
+
+
+@app.post("/api/run-pipeline")
+async def run_pipeline(user: dict = Depends(get_current_user)):
+    cfg = user_to_config(user)
+    pipeline = ContentPipeline(cfg)
+    try:
+        results = pipeline.run_daily_pipeline()
+        if results.get("clips_created") > 0:
+            log_content(user["id"], "Pipeline run", "video", "all", "created")
+        return results
+    except Exception as e:
+        log_content(user["id"], "Pipeline run", "video", "all", "error", error=str(e))
+        raise HTTPException(500, f"Pipeline error: {e}")
+
+
+@app.post("/api/whop-apply")
+async def whop_apply(user: dict = Depends(get_current_user)):
+    cfg = user_to_config(user)
+    if not cfg.whop.email:
+        raise HTTPException(400, "Whop credentials not configured")
+
+    applier = WhopAutoApply(cfg, headless=True)
+    try:
+        applier.run_auto_apply(max_applications=5)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"Whop error: {e}")
+
+
+@app.get("/api/campaigns")
+async def list_campaigns(user: dict = Depends(get_current_user)):
+    return get_campaigns(user["id"])
+
+
+@app.get("/api/content-log")
+async def content_log(user: dict = Depends(get_current_user)):
+    return get_content_log(user["id"])
+
+
+@app.get("/api/stats")
+async def get_stats(user: dict = Depends(get_current_user)):
+    campaigns = get_campaigns(user["id"])
+    content = get_content_log(user["id"])
+    return {
+        "total_campaigns": len(campaigns),
+        "applied_campaigns": sum(1 for c in campaigns if c["status"] == "applied"),
+        "total_content": len(content),
+        "published_content": sum(1 for c in content if c["status"] == "published"),
+        "errors": sum(1 for c in content if c["status"] == "error"),
+    }
+
+
+# --- Web UI ---
+
+HTML_DIR = Path(__file__).parent / "templates"
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    html = (HTML_DIR / "index.html").read_text(encoding="utf-8")
+    return html
+
+
+@app.get("/app", response_class=HTMLResponse)
+async def app_page():
+    html = (HTML_DIR / "dashboard.html").read_text(encoding="utf-8")
+    return html
