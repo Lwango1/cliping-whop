@@ -1,0 +1,32 @@
+# Config (contains API keys, passwords)
+config.json
+
+# Storage (downloaded videos, generated clips)
+storage/raw/*
+storage/processed/*
+!storage/raw/.gitkeep
+!storage/processed/.gitkeep
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Assets (binary files)
+assets/*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
