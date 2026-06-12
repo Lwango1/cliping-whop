@@ -398,6 +398,12 @@
                     headers: getHeaders(),
                     body: JSON.stringify({ url, start_time: start, duration }),
                 });
+                if (!r.ok) {
+                    let msg = `Erreur ${r.status}`;
+                    try { const e = await r.json(); msg = e.detail || msg; } catch(e2) {}
+                    res.innerHTML = `<span style="color:#f87171">${msg}</span>`;
+                    return;
+                }
                 const data = await r.json();
                 if (data.ok) {
                     res.innerHTML = `<span style="color:#4ade80">Clip cree !</span> <a href="/${data.file}" target="_blank" style="color:#ffd700">Voir la video</a>`;

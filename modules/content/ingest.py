@@ -104,7 +104,12 @@ class ContentIngestor:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         output_template = str(output_dir / "%(title)s.%(ext)s")
-        search_query = f"ytsearch1:{query} World Cup 2026 highlights"
+
+        is_url = query.startswith("http://") or query.startswith("https://")
+        if is_url:
+            search_args = [query]
+        else:
+            search_args = [f"ytsearch1:{query} World Cup 2026 highlights"]
 
         try:
             result = run_ytdlp([
@@ -113,7 +118,7 @@ class ContentIngestor:
                 "-f", "bestvideo[height<=720]+bestaudio/best[height<=720]",
                 "--merge-output-format", "mp4",
                 "-o", output_template,
-                search_query,
+                *search_args,
                 "--no-playlist",
                 "--quiet",
             ], timeout=120)
