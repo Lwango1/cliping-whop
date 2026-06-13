@@ -409,7 +409,7 @@ async def delete_content_file(path: str, user: dict = Depends(get_current_user))
 
 # --- Subscription endpoints ---
 
-CRYPTO_WALLET_ADDRESS = "TXYZ1234567890ABCDEFGHIJKLMNOPQRSTUV"
+CRYPTO_WALLET_ADDRESS = "0xb365cfcd75f6425e05eb072a7c97032c8d21ad28"
 
 
 @app.get("/api/subscription/plans")
@@ -480,7 +480,7 @@ async def all_subscriptions(user: dict = Depends(get_current_user)):
 
 @app.get("/api/subscription/address")
 async def subscription_address():
-    return {"address": CRYPTO_WALLET_ADDRESS, "network": "USDT (TRC-20)"}
+    return {"address": CRYPTO_WALLET_ADDRESS, "network": "BNB (BEP-20 / BSC)"}
 
 
 # --- Serve static files ---
