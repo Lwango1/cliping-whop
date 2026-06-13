@@ -36,6 +36,9 @@
         .btn-danger-ghost { background: transparent; border: 1px solid #ff4d4d; color: #ff4d4d; }
         .btn-danger-ghost:hover { background: #ff4d4d; color: #fff; }
         .btn-ghost { background: transparent; border: 1px solid #2a3655; color: #8892b0; }
+        .pwd-wrapper { position: relative; }
+        .pwd-wrapper input { padding-right: 40px; }
+        .pwd-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #8892b0; cursor: pointer; font-size: 18px; padding: 4px; }
         .btn-ghost:hover { border-color: #ffd700; color: #ffd700; }
         .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 12px; }
         .badge-success { background: #1a3a2a; color: #4ade80; }
@@ -146,7 +149,7 @@
                 <h4>Whop</h4>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6"><label class="form-label">Email</label><input id="whopEmail" class="form-control" placeholder="email@example.com"></div>
-                    <div class="col-md-6"><label class="form-label">Mot de passe</label><input id="whopPassword" type="password" class="form-control" placeholder="********"></div>
+                    <div class="col-md-6"><label class="form-label">Mot de passe</label><div class="pwd-wrapper"><input id="whopPassword" type="password" class="form-control" placeholder="********"><button class="pwd-toggle" onclick="togglePwd('whopPassword',this)">👁️</button></div></div>
                 </div>
                 <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
                 <span id="accountSaveMsg" style="color:#4ade80;margin-left:12px;display:none">✓ Enregistré</span>
@@ -163,7 +166,7 @@
                 <h4>YouTube</h4>
                 <div class="row g-3 mb-3">
                     <div class="col-md-4"><label class="form-label">Client ID</label><input id="ytClientId" class="form-control"></div>
-                    <div class="col-md-4"><label class="form-label">Client Secret</label><input id="ytClientSecret" class="form-control" type="password"></div>
+                    <div class="col-md-4"><label class="form-label">Client Secret</label><div class="pwd-wrapper"><input id="ytClientSecret" class="form-control" type="password"><button class="pwd-toggle" onclick="togglePwd('ytClientSecret',this)">👁️</button></div></div>
                     <div class="col-md-4"><label class="form-label">Refresh Token</label><input id="ytRefreshToken" class="form-control"></div>
                 </div>
                 <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
@@ -172,7 +175,7 @@
                 <h4>Instagram</h4>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6"><label class="form-label">Nom d'utilisateur</label><input id="igUsername" class="form-control"></div>
-                    <div class="col-md-6"><label class="form-label">Mot de passe</label><input id="igPassword" class="form-control" type="password"></div>
+                    <div class="col-md-6"><label class="form-label">Mot de passe</label><div class="pwd-wrapper"><input id="igPassword" class="form-control" type="password"><button class="pwd-toggle" onclick="togglePwd('igPassword',this)">👁️</button></div></div>
                 </div>
                 <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
             </div>
@@ -577,6 +580,13 @@
             } else {
                 el.innerHTML = '<p style="color:#8892b0">Aucun historique.</p>';
             }
+        }
+
+        function togglePwd(id, btn) {
+            const el = document.getElementById(id);
+            const isPwd = el.type === 'password';
+            el.type = isPwd ? 'text' : 'password';
+            btn.textContent = isPwd ? '🙈' : '👁️';
         }
 
         function logout() {
