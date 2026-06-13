@@ -39,7 +39,7 @@ def init_db():
             facebook_page_id TEXT DEFAULT '',
             facebook_access_token TEXT DEFAULT '',
             posts_per_day INTEGER DEFAULT 3,
-            campaign_keywords TEXT DEFAULT '["betway","world cup","canada"]',
+            campaign_keywords TEXT DEFAULT '["world cup","canada","football"]',
             content_sources TEXT DEFAULT '["youtube_replays","sports_api"]'
         );
 
@@ -65,6 +65,13 @@ def init_db():
             file_path TEXT DEFAULT '',
             published_at REAL,
             error TEXT DEFAULT '',
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS tokens (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            expires REAL NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
 
@@ -176,3 +183,36 @@ def get_content_log(user_id: int, limit: int = 20) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# --- Token functions ---
+
+def save_token(token: str, user_id: int, expires: float):
+    conn = get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO tokens (token, user_id, expires) VALUES (?, ?, ?)",
+        (token, user_id, expires)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_token_data(token: str) -> Optional[dict]:
+    conn = get_db()
+    row = conn.execute("SELECT * FROM tokens WHERE token = ?", (token,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def delete_token(token: str):
+    conn = get_db()
+    conn.execute("DELETE FROM tokens WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+
+
+def clean_expired_tokens():
+    conn = get_db()
+    conn.execute("DELETE FROM tokens WHERE expires < ?", (time.time(),))
+    conn.commit()
+    conn.close()

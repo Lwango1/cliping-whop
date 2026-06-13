@@ -580,6 +580,7 @@
         }
 
         function logout() {
+            fetch('/api/logout', { method: 'POST', headers: getHeaders() }).catch(() => {});
             localStorage.removeItem('token');
             localStorage.removeItem('username');
             window.location.href = '/';

@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
-from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content
+from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens
 from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR, load_config
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
@@ -26,8 +26,7 @@ app = FastAPI(title="Clipping Whop", version="1.0.0")
 security = HTTPBearer(auto_error=False)
 
 SECRET_KEY = secrets.token_hex(32)
-TOKEN_EXPIRY = 3600  # 1 hour
-tokens: dict[str, dict] = {}  # token -> {user_id, expires}
+TOKEN_EXPIRY = 2592000  # 30 days
 scheduler: Optional[BotScheduler] = None
 
 
@@ -41,7 +40,8 @@ def verify_password(password: str, hash_: str) -> bool:
 
 def gen_token(user_id: int) -> str:
     token = secrets.token_hex(32)
-    tokens[token] = {"user_id": user_id, "expires": time.time() + TOKEN_EXPIRY}
+    expires = time.time() + TOKEN_EXPIRY
+    save_token(token, user_id, expires)
     return token
 
 
@@ -49,8 +49,10 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
     if not credentials:
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = credentials.credentials
-    data = tokens.get(token)
+    data = get_token_data(token)
     if not data or data["expires"] < time.time():
+        if data:
+            delete_token(token)
         raise HTTPException(status_code=401, detail="Token expired")
     user = get_user_by_id(data["user_id"])
     if not user:
@@ -96,6 +98,7 @@ def user_to_config(user: dict) -> UserConfig:
 async def startup():
     global scheduler
     init_db()
+    clean_expired_tokens()
     cfg = load_config()
     if cfg.active_user:
         try:
@@ -180,6 +183,13 @@ async def login(req: LoginRequest):
 
     token = gen_token(user["id"])
     return {"token": token, "user_id": user["id"], "username": user["username"]}
+
+
+@app.post("/api/logout")
+async def logout(user: dict = Depends(get_current_user), credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    if credentials:
+        delete_token(credentials.credentials)
+    return {"ok": True}
 
 
 @app.get("/api/me")
