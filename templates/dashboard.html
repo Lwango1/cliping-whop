@@ -364,7 +364,7 @@
                     <div class="card" style="text-align:center;padding:24px;height:100%;border-color:#ffd700">
                         <div style="font-size:40px;margin-bottom:12px">🚀</div>
                         <h3 style="color:#fff;margin-bottom:4px">Starter</h3>
-                        <div style="font-size:28px;font-weight:700;color:#ffd700;margin-bottom:16px">9.99€<span style="font-size:14px;color:#8892b0">/mois</span></div>
+                        <div style="font-size:28px;font-weight:700;color:#ffd700;margin-bottom:16px">                        5$<span style="font-size:14px;color:#8892b0">/mois</span></div>
                         <div style="color:#8892b0;font-size:14px;margin-bottom:16px;min-height:100px">
                             <div>✓ 10 campagnes/jour</div>
                             <div>✓ Contenu premium</div>
@@ -378,7 +378,7 @@
                     <div class="card" style="text-align:center;padding:24px;height:100%">
                         <div style="font-size:40px;margin-bottom:12px">👑</div>
                         <h3 style="color:#fff;margin-bottom:4px">Pro</h3>
-                        <div style="font-size:28px;font-weight:700;color:#ffd700;margin-bottom:16px">19.99€<span style="font-size:14px;color:#8892b0">/mois</span></div>
+                        <div style="font-size:28px;font-weight:700;color:#ffd700;margin-bottom:16px">                        10$<span style="font-size:14px;color:#8892b0">/mois</span></div>
                         <div style="color:#8892b0;font-size:14px;margin-bottom:16px;min-height:100px">
                             <div>✓ Campagnes illimitées</div>
                             <div>✓ Contenu pro 4K</div>
@@ -405,26 +405,60 @@
                 <h4 style="color:#fff;margin:0" id="paymentModalTitle">Paiement Starter</h4>
                 <button onclick="closePaymentModal()" style="background:none;border:none;color:#8892b0;font-size:24px;cursor:pointer">✕</button>
             </div>
-            <div style="text-align:center;margin-bottom:16px">
-                <div style="color:#8892b0;font-size:14px;margin-bottom:8px">Envoyez le montant exact à l'adresse USDT (TRC-20) ci-dessous :</div>
-                <div style="font-size:24px;font-weight:700;color:#ffd700" id="paymentModalPrice">9.99€</div>
+
+            <div style="display:flex;gap:8px;margin-bottom:16px;background:#1a2340;border-radius:8px;overflow:hidden">
+                <div id="payTabCrypto" class="pay-tab active" onclick="switchPayTab('crypto')" style="flex:1;text-align:center;padding:10px;cursor:pointer;color:#8892b0;font-weight:500;transition:all 0.2s">💎 Crypto</div>
+                <div id="payTabLocal" class="pay-tab" onclick="switchPayTab('local')" style="flex:1;text-align:center;padding:10px;cursor:pointer;color:#8892b0;font-weight:500;transition:all 0.2s">💳 Local</div>
             </div>
-            <div style="text-align:center;margin-bottom:16px">
-                <img id="paymentQrCode" src="" alt="QR Code" style="width:200px;height:200px;border-radius:8px;background:#fff;padding:8px">
+
+            <div id="payCryptoSection">
+                <div style="text-align:center;margin-bottom:16px">
+                    <div style="color:#8892b0;font-size:14px;margin-bottom:8px">Envoyez le montant exact à l'adresse USDT (TRC-20) ci-dessous :</div>
+                    <div style="font-size:24px;font-weight:700;color:#ffd700" id="paymentModalPrice">9.99€</div>
+                </div>
+                <div style="text-align:center;margin-bottom:16px">
+                    <img id="paymentQrCode" src="" alt="QR Code" style="width:200px;height:200px;border-radius:8px;background:#fff;padding:8px">
+                </div>
+                <div style="margin-bottom:12px">
+                    <label class="form-label">Adresse du wallet (USDT TRC-20)</label>
+                    <div style="display:flex;gap:8px">
+                        <input id="walletAddressDisplay" class="form-control" readonly style="font-size:12px">
+                        <button class="btn btn-gold btn-sm" onclick="copyWalletAddress()" style="white-space:nowrap">Copier</button>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px">
+                    <label class="form-label">Hash de transaction (TXID)</label>
+                    <input id="txHashInput" class="form-control" placeholder="Collez le hash de la transaction ici">
+                </div>
+                <button id="verifyPaymentBtn" class="btn btn-gold w-100" onclick="verifyPayment()" style="padding:12px">Vérifier le paiement</button>
+                <div id="paymentResult" class="mt-2" style="font-size:14px;text-align:center"></div>
             </div>
-            <div style="margin-bottom:12px">
-                <label class="form-label">Adresse du wallet (USDT TRC-20)</label>
-                <div style="display:flex;gap:8px">
-                    <input id="walletAddressDisplay" class="form-control" readonly style="font-size:12px">
-                    <button class="btn btn-gold btn-sm" onclick="copyWalletAddress()" style="white-space:nowrap">Copier</button>
+
+            <div id="payLocalSection" style="display:none">
+                <div style="text-align:center;margin-bottom:16px">
+                    <div style="font-size:24px;font-weight:700;color:#ffd700" id="paymentLocalPrice">5$</div>
+                    <div style="color:#8892b0;font-size:14px;margin-top:4px">Paiement local (Mobile Money, Virement, etc.)</div>
+                </div>
+                <div class="card" style="text-align:center;padding:20px">
+                    <div style="font-size:14px;color:#8892b0;margin-bottom:16px">
+                        Contactez-nous pour payer par méthode locale :<br><br>
+                        <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+                            <a id="contactWhatsApp" href="https://wa.me/243000000000" target="_blank" style="display:flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:500;width:100%;justify-content:center">
+                                💬 WhatsApp
+                            </a>
+                            <a id="contactTelegram" href="https://t.me/votreusername" target="_blank" style="display:flex;align-items:center;gap:8px;background:#0088cc;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:500;width:100%;justify-content:center">
+                                ✈️ Telegram
+                            </a>
+                            <a id="contactEmail" href="mailto:contact@cliping-whop.com" style="display:flex;align-items:center;gap:8px;background:#1a2340;color:#e0e0e0;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:500;width:100%;justify-content:center;border:1px solid #2a3655">
+                                📧 Email
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div style="color:#8892b0;font-size:12px;text-align:center;margin-top:12px">
+                    Après le paiement, votre abonnement sera activé sous 24h.
                 </div>
             </div>
-            <div style="margin-bottom:16px">
-                <label class="form-label">Hash de transaction (TXID)</label>
-                <input id="txHashInput" class="form-control" placeholder="Collez le hash de la transaction ici">
-            </div>
-            <button id="verifyPaymentBtn" class="btn btn-gold w-100" onclick="verifyPayment()" style="padding:12px">Vérifier le paiement</button>
-            <div id="paymentResult" class="mt-2" style="font-size:14px;text-align:center"></div>
         </div>
     </div>
 
@@ -760,9 +794,10 @@
         function openPaymentModal(plan) {
             selectedPlan = plan;
             const planName = plan === 'starter' ? 'Starter' : 'Pro';
-            const price = plan === 'starter' ? '9.99€' : '19.99€';
+            const price = plan === 'starter' ? '5$' : '10$';
             document.getElementById('paymentModalTitle').textContent = `Paiement ${planName}`;
             document.getElementById('paymentModalPrice').textContent = price;
+            document.getElementById('paymentLocalPrice').textContent = price;
             document.getElementById('txHashInput').value = '';
             document.getElementById('paymentResult').innerHTML = '';
             document.getElementById('verifyPaymentBtn').disabled = false;
@@ -774,7 +809,24 @@
                     document.getElementById('paymentQrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(addr.address)}`;
                 }
             });
+            switchPayTab('crypto');
             document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function switchPayTab(tab) {
+            document.querySelectorAll('.pay-tab').forEach(t => t.style.background = 'transparent');
+            document.querySelectorAll('.pay-tab').forEach(t => t.style.color = '#8892b0');
+            if (tab === 'crypto') {
+                document.getElementById('payTabCrypto').style.background = '#ffd700';
+                document.getElementById('payTabCrypto').style.color = '#0a0e1a';
+                document.getElementById('payCryptoSection').style.display = 'block';
+                document.getElementById('payLocalSection').style.display = 'none';
+            } else {
+                document.getElementById('payTabLocal').style.background = '#ffd700';
+                document.getElementById('payTabLocal').style.color = '#0a0e1a';
+                document.getElementById('payCryptoSection').style.display = 'none';
+                document.getElementById('payLocalSection').style.display = 'block';
+            }
         }
 
         function closePaymentModal() {
