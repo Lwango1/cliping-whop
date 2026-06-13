@@ -13,6 +13,9 @@ logs/*
 
 # Assets (binary files)
 assets/*
+!assets/manifest.json
+!assets/icons/
+!assets/sw.js
 
 # Python cache
 __pycache__/
