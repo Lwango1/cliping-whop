@@ -417,9 +417,22 @@ async def subscription_plans():
     return {"plans": SUBSCRIPTION_PLANS}
 
 
+OWNER_USERNAMES = {"lwango1"}
+
 @app.get("/api/subscription/my")
 async def my_subscription(user: dict = Depends(get_current_user)):
+    is_owner = user.get("username") in OWNER_USERNAMES
     sub = get_subscription(user["id"])
+    if is_owner:
+        return {
+            "plan": "owner",
+            "status": "active",
+            "tx_hash": None,
+            "paid_at": None,
+            "expires_at": None,
+            "created_at": None,
+            "is_owner": True,
+        }
     if sub:
         return {
             "plan": sub["plan"],
@@ -428,8 +441,9 @@ async def my_subscription(user: dict = Depends(get_current_user)):
             "paid_at": sub["paid_at"],
             "expires_at": sub["expires_at"],
             "created_at": sub["created_at"],
+            "is_owner": False,
         }
-    return {"plan": "free", "status": "active", "paid_at": None, "expires_at": None, "created_at": None}
+    return {"plan": "free", "status": "active", "paid_at": None, "expires_at": None, "created_at": None, "is_owner": False}
 
 
 class VerifyPaymentRequest(BaseModel):
@@ -458,7 +472,7 @@ class ConfirmPaymentRequest(BaseModel):
 
 @app.post("/api/subscription/confirm")
 async def confirm_payment(req: ConfirmPaymentRequest, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
+    if user.get("role") != "admin" and user.get("username") not in OWNER_USERNAMES:
         raise HTTPException(403, "Accès réservé aux administrateurs")
     activate_subscription(req.subscription_id)
     return {"ok": True, "message": "Abonnement activé"}

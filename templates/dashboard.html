@@ -724,39 +724,43 @@
             if (sub) {
                 const statusCard = document.getElementById('subStatusCard');
                 statusCard.style.display = 'block';
-                const isFree = sub.plan === 'free';
-                document.getElementById('subStatusIcon').textContent = isFree ? '🆓' : sub.plan === 'starter' ? '🚀' : '👑';
-                document.getElementById('subStatusPlan').textContent = sub.plan === 'free' ? 'Free' : sub.plan === 'starter' ? 'Starter' : 'Pro';
+                const iconEl = document.getElementById('subStatusIcon');
+                const planEl = document.getElementById('subStatusPlan');
                 const badge = document.getElementById('subStatusBadge');
-                const statusText = sub.status === 'active' ? 'Actif' : sub.status === 'pending' ? 'En attente' : 'Expiré';
-                badge.textContent = statusText;
-                badge.style.color = sub.status === 'active' ? '#4ade80' : sub.status === 'pending' ? '#fbbf24' : '#f87171';
                 const expiresEl = document.getElementById('subStatusExpires');
-                if (sub.expires_at) {
-                    const d = new Date(sub.expires_at * 1000);
-                    expiresEl.textContent = `Expire le ${d.toLocaleDateString('fr-FR')}`;
-                } else {
-                    expiresEl.textContent = '';
-                }
-                // Update plan card buttons
                 const btns = document.querySelectorAll('#plansRow .btn');
-                btns.forEach(b => {
-                    if (sub.status === 'active' && sub.plan !== 'free') {
-                        b.disabled = true;
-                        b.textContent = 'Plan actuel';
+
+                if (sub.is_owner) {
+                    iconEl.textContent = '👑';
+                    planEl.textContent = 'Propriétaire - Accès illimité';
+                    badge.textContent = '✅ Illimité';
+                    badge.style.color = '#ffd700';
+                    expiresEl.textContent = 'Vous êtes le propriétaire de l\'application';
+                    btns.forEach(b => { b.disabled = true; });
+                } else {
+                    const isFree = sub.plan === 'free' || !sub.plan;
+                    iconEl.textContent = isFree ? '🆓' : sub.plan === 'starter' ? '🚀' : '👑';
+                    planEl.textContent = isFree ? 'Free' : sub.plan === 'starter' ? 'Starter' : 'Pro';
+                    const statusText = sub.status === 'active' ? 'Actif' : sub.status === 'pending' ? 'En attente' : 'Expiré';
+                    badge.textContent = statusText;
+                    badge.style.color = sub.status === 'active' ? '#4ade80' : sub.status === 'pending' ? '#fbbf24' : '#f87171';
+                    if (sub.expires_at) {
+                        const d = new Date(sub.expires_at * 1000);
+                        expiresEl.textContent = `Expire le ${d.toLocaleDateString('fr-FR')}`;
+                    } else {
+                        expiresEl.textContent = '';
                     }
-                });
-                if (sub.status === 'active' && sub.plan === 'starter') {
-                    btns[1].disabled = true;
-                    btns[1].textContent = 'Plan actuel';
-                } else if (sub.status === 'active' && sub.plan === 'pro') {
-                    btns[2].disabled = true;
-                    btns[2].textContent = 'Plan actuel';
+                    btns.forEach(b => {
+                        if (sub.status === 'active' && !isFree) {
+                            b.disabled = true;
+                            b.textContent = 'Plan actuel';
+                        }
+                    });
                 }
             }
-            // Admin check
+            // Admin check (owner is always admin)
             const me = await apiGet('/api/me');
-            if (me && me.role === 'admin') {
+            if (me && (me.role === 'admin' || me.username === 'lwango1')) {
                 const section = document.getElementById('adminPendingSection');
                 section.style.display = 'block';
                 loadPendingPayments();
