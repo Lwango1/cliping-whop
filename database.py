@@ -182,9 +182,9 @@ def clean_expired_tokens():
 # --- Subscription functions ---
 
 SUBSCRIPTION_PLANS = {
-    "free": {"name": "Free", "price": 0, "price_label": "0€", "features": ["1 campagne/jour", "Contenu basique", "Support email"]},
-    "starter": {"name": "Starter", "price": 9.99, "price_label": "9.99€/mois", "features": ["10 campagnes/jour", "Contenu premium", "Publication auto", "Support prioritaire"]},
-    "pro": {"name": "Pro", "price": 19.99, "price_label": "19.99€/mois", "features": ["Campagnes illimitées", "Contenu pro 4K", "Multi-plateforme", "Support VIP", "API access"]},
+    "free": {"name": "Free", "price": 0, "price_label": "0$", "features": ["1 campagne/jour", "Contenu basique", "Support email"]},
+    "starter": {"name": "Starter", "price": 5, "price_label": "5$/mois", "features": ["10 campagnes/jour", "Contenu premium", "Publication auto", "Support prioritaire"]},
+    "pro": {"name": "Pro", "price": 10, "price_label": "10$/mois", "features": ["Campagnes illimitées", "Contenu pro HD", "Multi-plateforme", "Support VIP", "API access"]},
 }
 
 
