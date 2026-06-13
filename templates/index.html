@@ -150,6 +150,46 @@
         document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
         document.getElementById('regPassword2').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('registerBtn').click(); });
 
+        // --- PWA Install Prompt ---
+        let deferredPrompt;
+        const installBar = document.createElement('div');
+        installBar.id = 'installBanner';
+        installBar.style.cssText = 'display:none;position:fixed;bottom:24px;left:12px;right:12px;background:#141b2d;border:1px solid #ffd700;border-radius:12px;padding:14px 18px;z-index:9999;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,0.5)';
+        installBar.innerHTML = `
+            <div>
+                <div style="color:#ffd700;font-weight:600;font-size:15px">⚽ Installer Clipping Whop</div>
+                <div style="color:#8892b0;font-size:12px">Ajoute l'app à ton téléphone</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-shrink:0">
+                <button id="installCancelBtn" style="background:transparent;border:1px solid #2a3655;color:#8892b0;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px">Plus tard</button>
+                <button id="installBtn" style="background:#ffd700;border:none;color:#0a0e1a;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:13px">Installer</button>
+            </div>
+        `;
+        document.body.appendChild(installBar);
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBar.style.display = 'flex';
+        });
+
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const result = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            installBar.style.display = 'none';
+        });
+
+        document.getElementById('installCancelBtn').addEventListener('click', () => {
+            installBar.style.display = 'none';
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            installBar.style.display = 'none';
+        });
+
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/assets/sw.js');
         }
