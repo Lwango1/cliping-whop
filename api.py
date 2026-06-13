@@ -354,7 +354,11 @@ async def delete_content_file(path: str, user: dict = Depends(get_current_user))
         raise HTTPException(500, f"Delete error: {e}")
 
 
-# --- Serve storage files ---
+# --- Serve static files ---
+
+ASSETS_DIR = Path(__file__).parent / "assets"
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 STORAGE_DIR = Path(__file__).parent / "storage"
 if STORAGE_DIR.exists():

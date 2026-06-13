@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Clipping Whop</title>
+    <link rel="manifest" href="/assets/manifest.json">
+    <link rel="icon" href="/assets/icons/icon-48x48.png" sizes="48x48">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#ffd700">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -57,6 +63,7 @@
         <div class="nav-item active" onclick="showPage('overview')"><span>📊</span><span>Vue d'ensemble</span></div>
         <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
         <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
+        <div class="nav-item" onclick="showPage('automation')"><span>🤖</span><span>Automatisation</span></div>
         <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
         <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Campagnes</span></div>
         <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Historique</span></div>
@@ -155,7 +162,7 @@
                         </div>
                         <div style="background:#1a2340;border-radius:8px;padding:16px;margin-bottom:16px">
                             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;color:#8892b0;font-size:14px">
-                                <span style="color:#4ade80">1.</span> Scrapper Whop et postuler aux campagnes Betway/World Cup
+                                <span style="color:#4ade80">1.</span> Scrapper Whop et postuler aux campagnes
                             </div>
                             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;color:#8892b0;font-size:14px">
                                 <span style="color:#4ade80">2.</span> Telecharger les replays YouTube des matchs
@@ -176,6 +183,43 @@
             </div>
         </div>
 
+        <!-- Automation -->
+        <div id="page-automation" class="page">
+            <h2>Automatisation</h2>
+            <div class="row">
+                <div class="col-md-8 mx-auto">
+                    <div class="card">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                            <span style="font-size:32px">🤖</span>
+                            <div>
+                                <h4 style="margin:0">Planificateur automatique</h4>
+                                <p style="color:#8892b0;margin:0;font-size:14px">
+                                    Lance la pipeline 4x/jour (10h, 14h, 18h, 21h) et postule aux campagnes Whop (Lun/Mer/Ven 9h30)
+                                </p>
+                            </div>
+                        </div>
+                        <div id="schedulerStatus" class="mb-3" style="background:#1a2340;border-radius:8px;padding:16px">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <span>Statut: <strong id="schedulerRunning">Chargement...</strong></span>
+                                <span id="schedulerUser"></span>
+                            </div>
+                            <div id="schedulerJobs" class="mt-2" style="font-size:14px;color:#8892b0"></div>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button id="startSchedulerBtn" class="btn btn-gold" onclick="startScheduler()">▶ Demarrer</button>
+                            <button id="stopSchedulerBtn" class="btn btn-danger-ghost" onclick="stopScheduler()">⏹ Arreter</button>
+                            <button class="btn btn-ghost" onclick="loadSchedulerStatus()">🔄 Rafraichir</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h4>Derniere execution de la pipeline</h4>
+                        <div id="lastPipelineRun" style="color:#8892b0;font-size:14px">Aucune execution pour le moment.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Content -->
         <div id="page-content" class="page">
             <h2>Contenu generer</h2>
@@ -183,17 +227,35 @@
             <div class="card">
                 <h4>Creer un clip a partir d'une URL YouTube</h4>
                 <div class="row g-3 mb-3">
-                    <div class="col-md-8">
+                    <div class="col-md-12">
                         <label class="form-label">URL de la video YouTube</label>
                         <input id="ytUrlInput" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
                     </div>
+                </div>
+                <div class="row g-3 mb-3">
                     <div class="col-md-2">
-                        <label class="form-label">Debut (secondes)</label>
+                        <label class="form-label">Debut (s)</label>
                         <input id="ytStartInput" type="number" class="form-control" value="10">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Duree (secondes)</label>
-                        <input id="ytDurationInput" type="number" class="form-control" value="30">
+                        <label class="form-label">Duree (s)</label>
+                        <input id="ytDurationInput" type="number" class="form-control" value="60">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Equipe domicile (optionnel)</label>
+                        <input id="ytTeamHome" class="form-control" placeholder="Canada">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Equipe adverse (optionnel)</label>
+                        <input id="ytTeamAway" class="form-control" placeholder="Bresil">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">Score D</label>
+                        <input id="ytScoreHome" class="form-control" placeholder="2">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">Score A</label>
+                        <input id="ytScoreAway" class="form-control" placeholder="1">
                     </div>
                 </div>
                 <button class="btn btn-gold" onclick="generateFromUrl()">🎬 Generer le clip</button>
@@ -246,6 +308,7 @@
             if (name === 'logs') loadLogs();
             if (name === 'accounts') loadAccounts();
             if (name === 'content') loadContent();
+            if (name === 'automation') loadSchedulerStatus();
         }
 
         async function apiGet(url) {
@@ -371,14 +434,14 @@
                 el.innerHTML = '<p style="color:#8892b0">Aucun fichier genere pour le moment.</p>';
                 return;
             }
-            let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Fichier</th><th>Taille</th><th>Type</th><th>Apercu</th></tr></thead><tbody>';
+            let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Fichier</th><th>Taille</th><th>Type</th><th>Apercu</th><th>Action</th></tr></thead><tbody>';
             files.slice(0, 30).forEach(f => {
                 const preview = f.ext === '.mp4'
                     ? `<video controls style="max-width:180px;max-height:100px;border-radius:4px"><source src="/${f.path}"></video>`
                     : f.ext === '.mp3'
                     ? `<audio controls style="max-width:180px"><source src="/${f.path}"></audio>`
                     : `<img src="/${f.path}" style="max-width:100px;max-height:60px;border-radius:4px">`;
-                html += `<tr><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</td><td>${f.size_str}</td><td>${f.ext}</td><td>${preview}</td></tr>`;
+                html += `<tr><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</td><td>${f.size_str}</td><td>${f.ext}</td><td>${preview}</td><td><button class="btn btn-danger-ghost btn-sm" onclick="deleteFile('${f.path}')">🗑</button></td></tr>`;
             });
             html += '</tbody></table></div>';
             el.innerHTML = html;
@@ -387,7 +450,11 @@
         async function generateFromUrl() {
             const url = document.getElementById('ytUrlInput').value.trim();
             const start = parseFloat(document.getElementById('ytStartInput').value) || 10;
-            const duration = parseFloat(document.getElementById('ytDurationInput').value) || 30;
+            const duration = parseFloat(document.getElementById('ytDurationInput').value) || 60;
+            const teamHome = document.getElementById('ytTeamHome').value.trim();
+            const teamAway = document.getElementById('ytTeamAway').value.trim();
+            const scoreHome = document.getElementById('ytScoreHome').value.trim();
+            const scoreAway = document.getElementById('ytScoreAway').value.trim();
             if (!url) { document.getElementById('urlGenResult').innerHTML = '<span style="color:#f87171">Entrez une URL YouTube</span>'; return; }
 
             const res = document.getElementById('urlGenResult');
@@ -396,7 +463,7 @@
                 const r = await fetch('/api/generate-from-url', {
                     method: 'POST',
                     headers: getHeaders(),
-                    body: JSON.stringify({ url, start_time: start, duration }),
+                    body: JSON.stringify({ url, start_time: start, duration, team_home: teamHome, team_away: teamAway, score_home: scoreHome, score_away: scoreAway }),
                 });
                 if (!r.ok) {
                     let msg = `Erreur ${r.status}`;
@@ -414,6 +481,44 @@
             } catch(e) {
                 res.innerHTML = '<span style="color:#f87171">Erreur de connexion</span>';
             }
+        }
+
+        async function deleteFile(path) {
+            if (!confirm('Supprimer ce fichier ?')) return;
+            const r = await fetch(`/api/content-files?path=${encodeURIComponent(path)}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${TOKEN}` },
+            });
+            if (r.ok) { toast('Fichier supprime'); loadContent(); }
+            else { toast('Erreur lors de la suppression', 'error'); }
+        }
+
+        // --- Automation ---
+        async function loadSchedulerStatus() {
+            const s = await apiGet('/api/scheduler/status');
+            if (!s) return;
+            document.getElementById('schedulerRunning').textContent = s.running ? '✅ En cours' : '⏹ Arrete';
+            document.getElementById('schedulerUser').textContent = s.active_user ? `Utilisateur: ${s.active_user}` : '';
+            const jobsEl = document.getElementById('schedulerJobs');
+            if (s.jobs && s.jobs.length) {
+                jobsEl.innerHTML = s.jobs.map(j =>
+                    `<div>${j.name} — prochaine execution: ${j.next_run ? new Date(j.next_run).toLocaleString() : 'inconnue'}</div>`
+                ).join('');
+            } else {
+                jobsEl.innerHTML = s.running ? 'Aucune tache planifiee' : 'Planificateur arrete';
+            }
+        }
+
+        async function startScheduler() {
+            const r = await fetch('/api/scheduler/start', { method: 'POST', headers: getHeaders() });
+            if (r.ok) { toast('Planificateur demarre'); loadSchedulerStatus(); }
+            else { toast('Erreur au demarrage', 'error'); }
+        }
+
+        async function stopScheduler() {
+            const r = await fetch('/api/scheduler/stop', { method: 'POST', headers: getHeaders() });
+            if (r.ok) { toast('Planificateur arrete'); loadSchedulerStatus(); }
+            else { toast('Erreur a l arret', 'error'); }
         }
 
         // --- Logs ---
@@ -434,6 +539,10 @@
         }
 
         loadOverview();
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/assets/sw.js');
+        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
