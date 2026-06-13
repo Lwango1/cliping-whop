@@ -52,11 +52,58 @@
         textarea.form-control { font-family: monospace; font-size: 13px; }
         .platform-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: #1a2340; }
         .spinner-border { width: 1rem; height: 1rem; }
-        @media (max-width: 768px) { .sidebar { width: 60px; padding: 16px 8px; } .sidebar .logo span:first-child { display: none; } .sidebar .nav-item span:last-child { display: none; } .main { margin-left: 60px; padding: 16px; } }
+        .bottom-nav { display: none; }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 16px 12px 80px; }
+            .bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: #101624;
+                border-top: 1px solid #1e2a45;
+                padding: 6px 0;
+                padding-bottom: max(6px, env(safe-area-inset-bottom));
+                z-index: 1000;
+                justify-content: space-around;
+            }
+            .bottom-nav .nav-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2px;
+                padding: 6px 8px;
+                border-radius: 8px;
+                color: #8892b0;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 10px;
+                margin: 0;
+                border: none;
+                min-width: 0;
+                flex: 1;
+            }
+            .bottom-nav .nav-item span:first-child { font-size: 20px; }
+            .bottom-nav .nav-item.active { background: #1a2340; color: #ffd700; border: none; }
+            .bottom-nav .nav-item:hover { background: #1a2340; color: #ffd700; }
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+        }
     </style>
 </head>
 <body>
     <div class="toast-container" id="toastContainer"></div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="showPage('overview')"><span>📊</span><span>Vue</span></div>
+        <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
+        <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
+        <div class="nav-item" onclick="showPage('automation')"><span>🤖</span><span>Auto</span></div>
+        <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
+        <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Camp.</span></div>
+        <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Logs</span></div>
+    </div>
 
     <div class="sidebar">
         <div class="logo"><span>⚽</span><span>Clipping Whop</span></div>
