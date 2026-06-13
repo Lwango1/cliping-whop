@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
-from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens
+from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL
 from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR, load_config
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
@@ -97,8 +97,12 @@ def user_to_config(user: dict) -> UserConfig:
 @app.on_event("startup")
 async def startup():
     global scheduler
-    init_db()
-    clean_expired_tokens()
+    if SUPABASE_URL:
+        init_db()
+        clean_expired_tokens()
+        print("[API] Supabase connected")
+    else:
+        print("[API] ⚠️  Supabase non configure. Definis SUPABASE_URL et SUPABASE_KEY dans les variables d'environnement.")
     cfg = load_config()
     if cfg.active_user:
         try:

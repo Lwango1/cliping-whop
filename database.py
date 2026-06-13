@@ -1,125 +1,77 @@
-import sqlite3
+import os
 import json
 import time
 from pathlib import Path
-from datetime import datetime, timezone
 from typing import Optional
 
-DB_PATH = Path(__file__).parent / "data" / "clipping_whop.db"
+from dotenv import load_dotenv
+from supabase import create_client, Client
+
+load_dotenv(Path(__file__).parent / ".env")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+_supabase: Optional[Client] = None
 
 
-def get_db() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+def get_supabase() -> Client:
+    global _supabase
+    if _supabase is None:
+        _supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return _supabase
 
 
 def init_db():
-    conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at REAL NOT NULL,
-            is_active INTEGER DEFAULT 1,
-            whop_email TEXT DEFAULT '',
-            whop_password TEXT DEFAULT '',
-            tiktok_session_id TEXT DEFAULT '',
-            tiktok_csrf_token TEXT DEFAULT '',
-            youtube_client_id TEXT DEFAULT '',
-            youtube_client_secret TEXT DEFAULT '',
-            youtube_refresh_token TEXT DEFAULT '',
-            instagram_username TEXT DEFAULT '',
-            instagram_password TEXT DEFAULT '',
-            facebook_page_id TEXT DEFAULT '',
-            facebook_access_token TEXT DEFAULT '',
-            posts_per_day INTEGER DEFAULT 3,
-            campaign_keywords TEXT DEFAULT '["world cup","canada","football"]',
-            content_sources TEXT DEFAULT '["youtube_replays","sports_api"]'
-        );
-
-        CREATE TABLE IF NOT EXISTS campaigns (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            platform TEXT DEFAULT 'whop',
-            url TEXT DEFAULT '',
-            budget TEXT DEFAULT '',
-            status TEXT DEFAULT 'pending',
-            applied_at REAL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS content_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            event_name TEXT DEFAULT '',
-            content_type TEXT DEFAULT 'video',
-            platform TEXT DEFAULT '',
-            status TEXT DEFAULT 'created',
-            file_path TEXT DEFAULT '',
-            published_at REAL,
-            error TEXT DEFAULT '',
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS tokens (
-            token TEXT PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            expires REAL NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-    """)
-    conn.commit()
-    conn.close()
+    pass
 
 
 # --- User functions ---
 
 def create_user(username: str, email: str, password_hash: str) -> Optional[int]:
-    conn = get_db()
     try:
-        cur = conn.execute(
-            "INSERT INTO users (username, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-            (username, email, password_hash, time.time())
-        )
-        conn.commit()
-        return cur.lastrowid
-    except sqlite3.IntegrityError:
-        return None
-    finally:
-        conn.close()
+        data = {
+            "username": username,
+            "email": email,
+            "password_hash": password_hash,
+            "created_at": time.time(),
+        }
+        res = get_supabase().table("users").insert(data).execute()
+        if res.data:
+            return res.data[0]["id"]
+    except Exception as e:
+        print(f"[DB] create_user error: {e}")
+    return None
 
 
 def get_user_by_username(username: str) -> Optional[dict]:
-    conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        res = get_supabase().table("users").select("*").eq("username", username).limit(1).execute()
+        if res.data:
+            return res.data[0]
+    except Exception as e:
+        print(f"[DB] get_user_by_username error: {e}")
+    return None
 
 
 def get_user_by_email(email: str) -> Optional[dict]:
-    conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        res = get_supabase().table("users").select("*").eq("email", email).limit(1).execute()
+        if res.data:
+            return res.data[0]
+    except Exception as e:
+        print(f"[DB] get_user_by_email error: {e}")
+    return None
 
 
 def get_user_by_id(user_id: int) -> Optional[dict]:
-    conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        res = get_supabase().table("users").select("*").eq("id", user_id).limit(1).execute()
+        if res.data:
+            return res.data[0]
+    except Exception as e:
+        print(f"[DB] get_user_by_id error: {e}")
+    return None
 
 
 def update_user(user_id: int, **kwargs):
@@ -129,90 +81,99 @@ def update_user(user_id: int, **kwargs):
         "instagram_username", "instagram_password", "facebook_page_id",
         "facebook_access_token", "posts_per_day", "campaign_keywords", "content_sources"
     ]
-    updates = {k: v for k, v in kwargs.items() if k in allowed}
+    updates = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
     if not updates:
         return
-    sets = ", ".join(f"{k} = ?" for k in updates)
-    vals = list(updates.values())
-    vals.append(user_id)
-    conn = get_db()
-    conn.execute(f"UPDATE users SET {sets} WHERE id = ?", vals)
-    conn.commit()
-    conn.close()
+    try:
+        get_supabase().table("users").update(updates).eq("id", user_id).execute()
+    except Exception as e:
+        print(f"[DB] update_user error: {e}")
 
 
 # --- Campaign functions ---
 
 def save_campaign(user_id: int, title: str, platform: str, url: str = "", budget: str = "", status: str = "pending"):
-    conn = get_db()
-    conn.execute(
-        "INSERT INTO campaigns (user_id, title, platform, url, budget, status, applied_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (user_id, title, platform, url, budget, status, time.time() if status == "applied" else None)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        data = {
+            "user_id": user_id,
+            "title": title,
+            "platform": platform,
+            "url": url,
+            "budget": budget,
+            "status": status,
+            "applied_at": time.time() if status == "applied" else None,
+        }
+        get_supabase().table("campaigns").insert(data).execute()
+    except Exception as e:
+        print(f"[DB] save_campaign error: {e}")
 
 
 def get_campaigns(user_id: int, limit: int = 20) -> list[dict]:
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM campaigns WHERE user_id = ? ORDER BY id DESC LIMIT ?",
-        (user_id, limit)
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    try:
+        res = get_supabase().table("campaigns").select("*").eq("user_id", user_id).order("id", desc=True).limit(limit).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        print(f"[DB] get_campaigns error: {e}")
+    return []
 
 
 # --- Content log functions ---
 
 def log_content(user_id: int, event_name: str, content_type: str, platform: str = "", status: str = "created", file_path: str = "", error: str = ""):
-    conn = get_db()
-    conn.execute(
-        "INSERT INTO content_log (user_id, event_name, content_type, platform, status, file_path, published_at, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (user_id, event_name, content_type, platform, status, file_path, time.time() if status == "published" else None, error)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        data = {
+            "user_id": user_id,
+            "event_name": event_name,
+            "content_type": content_type,
+            "platform": platform,
+            "status": status,
+            "file_path": file_path,
+            "published_at": time.time() if status == "published" else None,
+            "error": error,
+        }
+        get_supabase().table("content_log").insert(data).execute()
+    except Exception as e:
+        print(f"[DB] log_content error: {e}")
 
 
 def get_content_log(user_id: int, limit: int = 20) -> list[dict]:
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM content_log WHERE user_id = ? ORDER BY id DESC LIMIT ?",
-        (user_id, limit)
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    try:
+        res = get_supabase().table("content_log").select("*").eq("user_id", user_id).order("id", desc=True).limit(limit).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        print(f"[DB] get_content_log error: {e}")
+    return []
 
 
 # --- Token functions ---
 
 def save_token(token: str, user_id: int, expires: float):
-    conn = get_db()
-    conn.execute(
-        "INSERT OR REPLACE INTO tokens (token, user_id, expires) VALUES (?, ?, ?)",
-        (token, user_id, expires)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        data = {"token": token, "user_id": user_id, "expires": expires}
+        get_supabase().table("tokens").upsert(data).execute()
+    except Exception as e:
+        print(f"[DB] save_token error: {e}")
 
 
 def get_token_data(token: str) -> Optional[dict]:
-    conn = get_db()
-    row = conn.execute("SELECT * FROM tokens WHERE token = ?", (token,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        res = get_supabase().table("tokens").select("*").eq("token", token).limit(1).execute()
+        if res.data:
+            return res.data[0]
+    except Exception as e:
+        print(f"[DB] get_token_data error: {e}")
+    return None
 
 
 def delete_token(token: str):
-    conn = get_db()
-    conn.execute("DELETE FROM tokens WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
+    try:
+        get_supabase().table("tokens").delete().eq("token", token).execute()
+    except Exception as e:
+        print(f"[DB] delete_token error: {e}")
 
 
 def clean_expired_tokens():
-    conn = get_db()
-    conn.execute("DELETE FROM tokens WHERE expires < ?", (time.time(),))
-    conn.commit()
-    conn.close()
+    try:
+        get_supabase().table("tokens").delete().lt("expires", time.time()).execute()
+    except Exception as e:
+        print(f"[DB] clean_expired_tokens error: {e}")
