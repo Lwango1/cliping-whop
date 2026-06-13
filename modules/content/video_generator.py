@@ -17,8 +17,8 @@ class VideoGenerator:
         start_time: float = 0,
         duration: float = 60,
         resolution: str = "1080x1920",
-        add_intro: bool = True,
-        add_outro: bool = True,
+        add_intro: bool = False,
+        add_outro: bool = False,
     ) -> Optional[Path]:
         output_path = PROCESSED_DIR / f"{output_name}.mp4"
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -283,9 +283,9 @@ class VideoGenerator:
         score_away: str = "",
         add_ken_burns: bool = True,
         add_color_grade: bool = True,
-        add_scoreboard: bool = True,
-        add_intro: bool = True,
-        add_outro: bool = True,
+        add_scoreboard: bool = False,
+        add_intro: bool = False,
+        add_outro: bool = False,
     ) -> Optional[Path]:
         output_path = PROCESSED_DIR / f"{output_name}.mp4"
         output_path.parent.mkdir(parents=True, exist_ok=True)
