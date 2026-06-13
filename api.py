@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
-from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY
+from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY, SUBSCRIPTION_PLANS, create_subscription, get_subscription, get_all_subscriptions, get_pending_subscriptions, activate_subscription, deactivate_subscription
 from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR, load_config
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
@@ -405,6 +405,82 @@ async def delete_content_file(path: str, user: dict = Depends(get_current_user))
         return {"ok": True}
     except Exception as e:
         raise HTTPException(500, f"Delete error: {e}")
+
+
+# --- Subscription endpoints ---
+
+CRYPTO_WALLET_ADDRESS = "TXYZ1234567890ABCDEFGHIJKLMNOPQRSTUV"
+
+
+@app.get("/api/subscription/plans")
+async def subscription_plans():
+    return {"plans": SUBSCRIPTION_PLANS}
+
+
+@app.get("/api/subscription/my")
+async def my_subscription(user: dict = Depends(get_current_user)):
+    sub = get_subscription(user["id"])
+    if sub:
+        return {
+            "plan": sub["plan"],
+            "status": sub["status"],
+            "tx_hash": sub["tx_hash"],
+            "paid_at": sub["paid_at"],
+            "expires_at": sub["expires_at"],
+            "created_at": sub["created_at"],
+        }
+    return {"plan": "free", "status": "active", "paid_at": None, "expires_at": None, "created_at": None}
+
+
+class VerifyPaymentRequest(BaseModel):
+    plan: str
+    tx_hash: str
+
+
+@app.post("/api/subscription/verify")
+async def verify_payment(req: VerifyPaymentRequest, user: dict = Depends(get_current_user)):
+    if req.plan not in SUBSCRIPTION_PLANS:
+        raise HTTPException(400, "Plan invalide")
+    if not req.tx_hash.strip():
+        raise HTTPException(400, "Hash de transaction requis")
+    existing = get_subscription(user["id"])
+    if existing and existing["status"] == "active":
+        return {"ok": True, "message": "Vous avez déjà un abonnement actif"}
+    sub_id = create_subscription(user["id"], req.plan, req.tx_hash.strip(), status="pending")
+    if not sub_id:
+        raise HTTPException(500, "Erreur lors de la création de l'abonnement")
+    return {"ok": True, "subscription_id": sub_id, "message": "Paiement en attente de confirmation"}
+
+
+class ConfirmPaymentRequest(BaseModel):
+    subscription_id: int
+
+
+@app.post("/api/subscription/confirm")
+async def confirm_payment(req: ConfirmPaymentRequest, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    activate_subscription(req.subscription_id)
+    return {"ok": True, "message": "Abonnement activé"}
+
+
+@app.get("/api/subscription/pending")
+async def pending_subscriptions(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    return get_pending_subscriptions()
+
+
+@app.get("/api/subscription/all")
+async def all_subscriptions(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(403, "Accès réservé aux administrateurs")
+    return get_all_subscriptions()
+
+
+@app.get("/api/subscription/address")
+async def subscription_address():
+    return {"address": CRYPTO_WALLET_ADDRESS, "network": "USDT (TRC-20)"}
 
 
 # --- Serve static files ---

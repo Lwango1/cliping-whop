@@ -106,6 +106,7 @@
         <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
         <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Camp.</span></div>
         <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Logs</span></div>
+        <div class="nav-item" onclick="showPage('subscription')"><span>💎</span><span>Abonnement</span></div>
     </div>
 
     <div class="sidebar">
@@ -117,6 +118,7 @@
         <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
         <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Campagnes</span></div>
         <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Historique</span></div>
+        <div class="nav-item" onclick="showPage('subscription')"><span>💎</span><span>Abonnement</span></div>
         <div style="flex:1"></div>
         <div class="user-badge">
             <span>👤</span>
@@ -329,6 +331,101 @@
             <h2>Historique</h2>
             <div class="card"><div id="logsList"><p style="color:#8892b0">Aucun historique.</p></div></div>
         </div>
+
+        <!-- Subscription -->
+        <div id="page-subscription" class="page">
+            <h2>💎 Abonnement</h2>
+            <div id="subStatusCard" class="card" style="display:none">
+                <h4>Mon abonnement actuel</h4>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <span style="font-size:24px" id="subStatusIcon">🆓</span>
+                    <div>
+                        <div style="font-size:18px;font-weight:600;color:#fff" id="subStatusPlan">Free</div>
+                        <div style="font-size:14px;color:#8892b0" id="subStatusDetail">Statut: <span id="subStatusBadge">Actif</span></div>
+                        <div style="font-size:13px;color:#8892b0" id="subStatusExpires"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3" id="plansRow">
+                <div class="col-md-4">
+                    <div class="card" style="text-align:center;padding:24px;height:100%">
+                        <div style="font-size:40px;margin-bottom:12px">🆓</div>
+                        <h3 style="color:#fff;margin-bottom:4px">Free</h3>
+                        <div style="font-size:28px;font-weight:700;color:#ffd700;margin-bottom:16px">0€</div>
+                        <div style="color:#8892b0;font-size:14px;margin-bottom:16px;min-height:100px">
+                            <div>✓ 1 campagne/jour</div>
+                            <div>✓ Contenu basique</div>
+                            <div>✓ Support email</div>
+                        </div>
+                        <button class="btn btn-ghost w-100" disabled>Plan actuel</button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card" style="text-align:center;padding:24px;height:100%;border-color:#ffd700">
+                        <div style="font-size:40px;margin-bottom:12px">🚀</div>
+                        <h3 style="color:#fff;margin-bottom:4px">Starter</h3>
+                        <div style="font-size:28px;font-weight:700;color:#ffd700;margin-bottom:16px">9.99€<span style="font-size:14px;color:#8892b0">/mois</span></div>
+                        <div style="color:#8892b0;font-size:14px;margin-bottom:16px;min-height:100px">
+                            <div>✓ 10 campagnes/jour</div>
+                            <div>✓ Contenu premium</div>
+                            <div>✓ Publication automatique</div>
+                            <div>✓ Support prioritaire</div>
+                        </div>
+                        <button class="btn btn-gold w-100" onclick="openPaymentModal('starter')">S'abonner</button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card" style="text-align:center;padding:24px;height:100%">
+                        <div style="font-size:40px;margin-bottom:12px">👑</div>
+                        <h3 style="color:#fff;margin-bottom:4px">Pro</h3>
+                        <div style="font-size:28px;font-weight:700;color:#ffd700;margin-bottom:16px">19.99€<span style="font-size:14px;color:#8892b0">/mois</span></div>
+                        <div style="color:#8892b0;font-size:14px;margin-bottom:16px;min-height:100px">
+                            <div>✓ Campagnes illimitées</div>
+                            <div>✓ Contenu pro 4K</div>
+                            <div>✓ Multi-plateforme</div>
+                            <div>✓ Support VIP</div>
+                            <div>✓ API access</div>
+                        </div>
+                        <button class="btn btn-gold w-100" onclick="openPaymentModal('pro')">S'abonner</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Admin pending payments -->
+            <div id="adminPendingSection" class="card" style="display:none;margin-top:16px">
+                <h4>Paiements en attente de confirmation</h4>
+                <div id="adminPendingList"><p style="color:#8892b0">Aucun paiement en attente.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;padding:16px">
+        <div style="background:#141b2d;border:1px solid #2a3655;border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h4 style="color:#fff;margin:0" id="paymentModalTitle">Paiement Starter</h4>
+                <button onclick="closePaymentModal()" style="background:none;border:none;color:#8892b0;font-size:24px;cursor:pointer">✕</button>
+            </div>
+            <div style="text-align:center;margin-bottom:16px">
+                <div style="color:#8892b0;font-size:14px;margin-bottom:8px">Envoyez le montant exact à l'adresse USDT (TRC-20) ci-dessous :</div>
+                <div style="font-size:24px;font-weight:700;color:#ffd700" id="paymentModalPrice">9.99€</div>
+            </div>
+            <div style="text-align:center;margin-bottom:16px">
+                <img id="paymentQrCode" src="" alt="QR Code" style="width:200px;height:200px;border-radius:8px;background:#fff;padding:8px">
+            </div>
+            <div style="margin-bottom:12px">
+                <label class="form-label">Adresse du wallet (USDT TRC-20)</label>
+                <div style="display:flex;gap:8px">
+                    <input id="walletAddressDisplay" class="form-control" readonly style="font-size:12px">
+                    <button class="btn btn-gold btn-sm" onclick="copyWalletAddress()" style="white-space:nowrap">Copier</button>
+                </div>
+            </div>
+            <div style="margin-bottom:16px">
+                <label class="form-label">Hash de transaction (TXID)</label>
+                <input id="txHashInput" class="form-control" placeholder="Collez le hash de la transaction ici">
+            </div>
+            <button id="verifyPaymentBtn" class="btn btn-gold w-100" onclick="verifyPayment()" style="padding:12px">Vérifier le paiement</button>
+            <div id="paymentResult" class="mt-2" style="font-size:14px;text-align:center"></div>
+        </div>
     </div>
 
     <script>
@@ -359,6 +456,7 @@
             if (name === 'accounts') loadAccounts();
             if (name === 'content') loadContent();
             if (name === 'automation') loadSchedulerStatus();
+            if (name === 'subscription') loadSubscriptionPage();
         }
 
         async function apiGet(url) {
@@ -579,6 +677,135 @@
                 el.innerHTML = `<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Événement</th><th>Type</th><th>Plateforme</th><th>Status</th><th>Date</th></tr></thead><tbody>${list.map(l => `<tr><td>${l.event_name || '-'}</td><td>${l.content_type}</td><td>${l.platform || '-'}</td><td><span class="badge-status ${l.status === 'published' ? 'badge-success' : l.status === 'error' ? 'badge-error' : 'badge-warning'}">${l.status}</span></td><td>${l.published_at ? new Date(l.published_at*1000).toLocaleDateString() : '-'}</td></tr>`).join('')}</tbody></table></div>`;
             } else {
                 el.innerHTML = '<p style="color:#8892b0">Aucun historique.</p>';
+            }
+        }
+
+        // --- Subscription ---
+        let selectedPlan = 'starter';
+
+        async function loadSubscriptionPage() {
+            const sub = await apiGet('/api/subscription/my');
+            if (sub) {
+                const statusCard = document.getElementById('subStatusCard');
+                statusCard.style.display = 'block';
+                const isFree = sub.plan === 'free';
+                document.getElementById('subStatusIcon').textContent = isFree ? '🆓' : sub.plan === 'starter' ? '🚀' : '👑';
+                document.getElementById('subStatusPlan').textContent = sub.plan === 'free' ? 'Free' : sub.plan === 'starter' ? 'Starter' : 'Pro';
+                const badge = document.getElementById('subStatusBadge');
+                const statusText = sub.status === 'active' ? 'Actif' : sub.status === 'pending' ? 'En attente' : 'Expiré';
+                badge.textContent = statusText;
+                badge.style.color = sub.status === 'active' ? '#4ade80' : sub.status === 'pending' ? '#fbbf24' : '#f87171';
+                const expiresEl = document.getElementById('subStatusExpires');
+                if (sub.expires_at) {
+                    const d = new Date(sub.expires_at * 1000);
+                    expiresEl.textContent = `Expire le ${d.toLocaleDateString('fr-FR')}`;
+                } else {
+                    expiresEl.textContent = '';
+                }
+                // Update plan card buttons
+                const btns = document.querySelectorAll('#plansRow .btn');
+                btns.forEach(b => {
+                    if (sub.status === 'active' && sub.plan !== 'free') {
+                        b.disabled = true;
+                        b.textContent = 'Plan actuel';
+                    }
+                });
+                if (sub.status === 'active' && sub.plan === 'starter') {
+                    btns[1].disabled = true;
+                    btns[1].textContent = 'Plan actuel';
+                } else if (sub.status === 'active' && sub.plan === 'pro') {
+                    btns[2].disabled = true;
+                    btns[2].textContent = 'Plan actuel';
+                }
+            }
+            // Admin check
+            const me = await apiGet('/api/me');
+            if (me && me.role === 'admin') {
+                const section = document.getElementById('adminPendingSection');
+                section.style.display = 'block';
+                loadPendingPayments();
+            }
+        }
+
+        async function loadPendingPayments() {
+            const list = await apiGet('/api/subscription/pending');
+            const el = document.getElementById('adminPendingList');
+            if (list && list.length) {
+                el.innerHTML = list.map(p => {
+                    const planName = p.plan === 'starter' ? 'Starter' : 'Pro';
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e2a45">
+                        <div>
+                            <div style="color:#fff">${planName} — <span style="color:#8892b0;font-size:13px">TX: ${p.tx_hash.slice(0,16)}...</span></div>
+                            <div style="font-size:12px;color:#8892b0">${p.paid_at ? new Date(p.paid_at*1000).toLocaleString('fr-FR') : ''}</div>
+                        </div>
+                        <button class="btn btn-gold btn-sm" onclick="confirmPayment(${p.id})">Confirmer</button>
+                    </div>`;
+                }).join('');
+            } else {
+                el.innerHTML = '<p style="color:#8892b0">Aucun paiement en attente.</p>';
+            }
+        }
+
+        async function confirmPayment(subId) {
+            const r = await apiPost('/api/subscription/confirm', { subscription_id: subId });
+            if (r && r.ok) {
+                toast('Paiement confirmé !');
+                loadPendingPayments();
+                loadSubscriptionPage();
+            } else {
+                toast('Erreur de confirmation', 'error');
+            }
+        }
+
+        function openPaymentModal(plan) {
+            selectedPlan = plan;
+            const planName = plan === 'starter' ? 'Starter' : 'Pro';
+            const price = plan === 'starter' ? '9.99€' : '19.99€';
+            document.getElementById('paymentModalTitle').textContent = `Paiement ${planName}`;
+            document.getElementById('paymentModalPrice').textContent = price;
+            document.getElementById('txHashInput').value = '';
+            document.getElementById('paymentResult').innerHTML = '';
+            document.getElementById('verifyPaymentBtn').disabled = false;
+            document.getElementById('verifyPaymentBtn').innerHTML = 'Vérifier le paiement';
+            // Load wallet address and QR
+            apiGet('/api/subscription/address').then(addr => {
+                if (addr) {
+                    document.getElementById('walletAddressDisplay').value = addr.address;
+                    document.getElementById('paymentQrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(addr.address)}`;
+                }
+            });
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+        }
+
+        function copyWalletAddress() {
+            const input = document.getElementById('walletAddressDisplay');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => toast('Adresse copiée !'));
+        }
+
+        async function verifyPayment() {
+            const txHash = document.getElementById('txHashInput').value.trim();
+            if (!txHash) {
+                document.getElementById('paymentResult').innerHTML = '<span style="color:#f87171">Veuillez entrer le hash de transaction</span>';
+                return;
+            }
+            const btn = document.getElementById('verifyPaymentBtn');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Vérification...';
+            const r = await apiPost('/api/subscription/verify', { plan: selectedPlan, tx_hash: txHash });
+            if (r && r.ok) {
+                document.getElementById('paymentResult').innerHTML = '<span style="color:#4ade80">✅ Paiement reçu ! En attente de confirmation par un administrateur.</span>';
+                toast('Paiement soumis !');
+                setTimeout(closePaymentModal, 2500);
+                loadSubscriptionPage();
+            } else {
+                document.getElementById('paymentResult').innerHTML = `<span style="color:#f87171">❌ ${r && r.detail ? r.detail : 'Erreur de vérification'}</span>`;
+                btn.disabled = false;
+                btn.innerHTML = 'Vérifier le paiement';
             }
         }
 

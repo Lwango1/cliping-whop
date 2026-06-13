@@ -179,6 +179,82 @@ def clean_expired_tokens():
         print(f"[DB] clean_expired_tokens error: {e}")
 
 
+# --- Subscription functions ---
+
+SUBSCRIPTION_PLANS = {
+    "free": {"name": "Free", "price": 0, "price_label": "0€", "features": ["1 campagne/jour", "Contenu basique", "Support email"]},
+    "starter": {"name": "Starter", "price": 9.99, "price_label": "9.99€/mois", "features": ["10 campagnes/jour", "Contenu premium", "Publication auto", "Support prioritaire"]},
+    "pro": {"name": "Pro", "price": 19.99, "price_label": "19.99€/mois", "features": ["Campagnes illimitées", "Contenu pro 4K", "Multi-plateforme", "Support VIP", "API access"]},
+}
+
+
+def create_subscription(user_id: int, plan: str, tx_hash: str, status: str = "pending") -> Optional[int]:
+    try:
+        now = time.time()
+        data = {
+            "user_id": user_id,
+            "plan": plan,
+            "status": status,
+            "tx_hash": tx_hash,
+            "paid_at": now,
+            "expires_at": now + 2592000,
+            "created_at": now,
+        }
+        res = get_supabase().table("subscriptions").insert(data).execute()
+        if res.data:
+            return res.data[0]["id"]
+    except Exception as e:
+        print(f"[DB] create_subscription error: {e}")
+    return None
+
+
+def get_subscription(user_id: int) -> Optional[dict]:
+    try:
+        res = get_supabase().table("subscriptions").select("*").eq("user_id", user_id).order("id", desc=True).limit(1).execute()
+        if res.data:
+            return res.data[0]
+    except Exception as e:
+        print(f"[DB] get_subscription error: {e}")
+    return None
+
+
+def get_all_subscriptions(limit: int = 50) -> list[dict]:
+    try:
+        res = get_supabase().table("subscriptions").select("*").order("id", desc=True).limit(limit).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        print(f"[DB] get_all_subscriptions error: {e}")
+    return []
+
+
+def get_pending_subscriptions() -> list[dict]:
+    try:
+        res = get_supabase().table("subscriptions").select("*").eq("status", "pending").limit(50).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        print(f"[DB] get_pending_subscriptions error: {e}")
+    return []
+
+
+def activate_subscription(subscription_id: int):
+    try:
+        now = time.time()
+        get_supabase().table("subscriptions").update({
+            "status": "active",
+            "paid_at": now,
+            "expires_at": now + 2592000,
+        }).eq("id", subscription_id).execute()
+    except Exception as e:
+        print(f"[DB] activate_subscription error: {e}")
+
+
+def deactivate_subscription(subscription_id: int):
+    try:
+        get_supabase().table("subscriptions").update({"status": "expired"}).eq("id", subscription_id).execute()
+    except Exception as e:
+        print(f"[DB] deactivate_subscription error: {e}")
+
+
 # --- Storage functions ---
 
 def upload_file(local_path: Path, storage_path: str, bucket: str = "clips") -> Optional[str]:
