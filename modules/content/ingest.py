@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from config import RAW_DIR
-from utils import run_ytdlp, init_output
+from utils import init_output
 
 init_output()
 
@@ -103,62 +103,79 @@ class ContentIngestor:
         output_dir = output_dir or RAW_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        import tempfile
-        temp_dir = output_dir / f"dl_{int(time.time())}"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        temp_template = str(temp_dir / "%(title)s.%(ext)s")
-
         is_url = query.startswith("http://") or query.startswith("https://")
-        if is_url:
-            search_args = [query]
-        else:
-            search_args = [f"ytsearch1:{query} World Cup 2026 highlights"]
 
         try:
-            result = run_ytdlp([
-                "--max-filesize", "500M",
-                "--match-filter", f"duration < {max_duration}",
-                "-f", "best[height<=720]",
-                "--merge-output-format", "mp4",
-                "-o", temp_template,
-                *search_args,
-                "--no-playlist",
-                "--quiet",
-            ], timeout=180)
+            import yt_dlp
+            from utils import get_ffmpeg_path
 
-            if result.returncode != 0:
-                err = result.stderr.decode("utf-8", errors="replace")[:300]
-                print(f"[Ingest] yt-dlp failed: {err}")
-                try: import shutil; shutil.rmtree(temp_dir, ignore_errors=True)
-                except: pass
+            suffix = int(time.time())
+            output_template = str(output_dir / f"clip_{suffix}.%(ext)s")
+
+            ydl_opts = {
+                "max_filesize": 500 * 1024 * 1024,
+                "format": "best[height<=720]",
+                "outtmpl": output_template,
+                "noplaylist": True,
+                "quiet": True,
+                "no_warnings": True,
+                "ffmpeg_location": get_ffmpeg_path(),
+                "merge_output_format": "mp4",
+            }
+
+            if is_url:
+                url = query
+            else:
+                ydl_opts["match_filter"] = yt_dlp.utils.match_filter_func(f"duration < {max_duration}")
+                url = f"ytsearch1:{query} World Cup 2026 highlights"
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                if not info:
+                    print("[Ingest] yt-dlp returned no info")
+                    return None
+
+                # Try prepare_filename first
+                try:
+                    entries = info.get("entries") if info.get("_type") == "playlist" else None
+                    if entries:
+                        for entry in entries:
+                            fn = ydl.prepare_filename(entry)
+                            if fn:
+                                fp = Path(fn)
+                                if fp.exists() and fp.stat().st_size > 100000:
+                                    print(f"[Ingest] Downloaded: {fp.name}")
+                                    return fp
+                    else:
+                        fn = ydl.prepare_filename(info)
+                        if fn:
+                            fp = Path(fn)
+                            if fp.exists() and fp.stat().st_size > 100000:
+                                print(f"[Ingest] Downloaded: {fp.name}")
+                                return fp
+                except Exception:
+                    pass
+
+                # Fallback: glob by suffix
+                for f in output_dir.glob(f"clip_{suffix}.*"):
+                    if f.suffix.lower() in (".mp4", ".webm", ".mkv", ".m4a") and f.stat().st_size > 100000:
+                        print(f"[Ingest] Downloaded: {f.name}")
+                        return f
+
+                # Fallback: most recent mp4
+                mp4s = [f for f in output_dir.glob("*.*") if f.suffix.lower() in (".mp4", ".webm", ".mkv") and f.stat().st_size > 100000]
+                if mp4s:
+                    latest = max(mp4s, key=lambda f: f.stat().st_mtime)
+                    age = time.time() - latest.stat().st_mtime
+                    if age < 120:
+                        print(f"[Ingest] Downloaded (recent): {latest.name}")
+                        return latest
+
+                print("[Ingest] File not found after download")
                 return None
-
-            files = list(temp_dir.rglob("*"))
-            video_file = None
-            for f in files:
-                if f.suffix.lower() in (".mp4", ".webm", ".mkv", ".mov", ".avi") and f.stat().st_size > 100000:
-                    video_file = f
-                    break
-
-            if not video_file:
-                print("[Ingest] No video file found in download")
-                try: import shutil; shutil.rmtree(temp_dir, ignore_errors=True)
-                except: pass
-                return None
-
-            final_path = output_dir / video_file.name
-            import shutil
-            shutil.move(str(video_file), str(final_path))
-            try: shutil.rmtree(temp_dir, ignore_errors=True)
-            except: pass
-
-            print(f"[Ingest] Downloaded: {final_path.name}")
-            return final_path
 
         except Exception as e:
             print(f"[Ingest] Download failed: {e}")
-            try: import shutil; shutil.rmtree(temp_dir, ignore_errors=True)
-            except: pass
             return None
 
     @staticmethod

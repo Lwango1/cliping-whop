@@ -12,7 +12,7 @@ CAPTION_TEMPLATES = [
     "Canada making history at the World Cup! Can they go all the way?",
     "The pressure is on! Every pass counts in this World Cup showdown.",
     "That skill move was FILTHY! World Cup 2026 delivering the best football.",
-    "Betway Canada brings you the best World Cup action. Who's your pick?",
+    "The World Cup brings the best football action. Who's your pick?",
     "From the stands to the pitch, the energy is UNREAL at the World Cup!",
     "World Cup 2026 - where legends are made. Subscribe for daily highlights!",
 ]

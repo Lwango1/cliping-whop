@@ -21,7 +21,7 @@ class ImageGenerator:
         output_path = PROCESSED_DIR / "thumbnails" / f"{output_name}.jpg"
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        width, height = 1280, 720
+        width, height = 1920, 1080
         bg_color = (20, 30, 60)
         img = Image.new("RGB", (width, height), bg_color)
         draw = ImageDraw.Draw(img)
@@ -52,9 +52,9 @@ class ImageGenerator:
         draw.text((width // 2 - 200, height // 2 + 80), team_home, font=font_medium, fill=(255, 80, 80), anchor="mt")
         draw.text((width // 2 + 200, height // 2 + 80), team_away, font=font_medium, fill=(80, 180, 255), anchor="mt")
 
-        draw.text((width // 2, height - 100), "Betway Canada", font=font_medium, fill=(255, 215, 0), anchor="mt")
+        draw.text((width // 2, height - 100), "World Cup 2026", font=font_medium, fill=(255, 215, 0), anchor="mt")
 
-        img.save(output_path, quality=92)
+        img.save(output_path, quality=95, subsampling=0)
         print(f"[ImageGen] Thumbnail created: {output_path.name}")
         return output_path
 
@@ -98,9 +98,9 @@ class ImageGenerator:
         for i, line in enumerate(lines):
             draw.text((width // 2, y_start + i * 50), line, font=font_body, fill="white", anchor="mt")
 
-        draw.text((width // 2, height - 80), "Betway Canada", font=font_body, fill=(255, 215, 0), anchor="mt")
+        draw.text((width // 2, height - 80), "World Cup 2026", font=font_body, fill=(255, 215, 0), anchor="mt")
 
-        img.save(output_path, quality=90)
+        img.save(output_path, quality=95, subsampling=0)
         print(f"[ImageGen] Post image created: {output_path.name}")
         return output_path
 

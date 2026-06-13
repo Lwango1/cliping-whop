@@ -62,7 +62,7 @@ class YouTubePublisher:
             "snippet": {
                 "title": title[:100],
                 "description": full_desc[:5000],
-                "tags": ["WorldCup", "Betway", "Shorts"] + (hashtags or []),
+                "tags": ["WorldCup", "Shorts"] + (hashtags or []),
                 "categoryId": "17",
             },
             "status": {

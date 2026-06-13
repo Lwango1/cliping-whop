@@ -71,17 +71,19 @@ class WhopAutoApply:
             "Hi team,\n\n"
             "I specialize in creating high-engagement sports content for the Canadian market. "
             "I can produce daily video clips, highlights, and promotional content "
-            "for the Betway World Cup campaign across TikTok, YouTube, Instagram, and Facebook.\n\n"
+            "for the World Cup campaign across TikTok, YouTube, Instagram, and Facebook.\n\n"
             "Looking forward to contributing!\n\nBest regards"
         )
 
-    def run_auto_apply(self, max_applications: int = 5):
+    def run_auto_apply(self, max_applications: int = 5) -> dict:
+        result = {"campaigns_found": 0, "campaigns_applied": 0}
         try:
             if not self.scraper.login():
                 print("[WhopAutoApply] Login failed")
-                return
+                return result
 
             targets = self.find_target_campaigns()
+            result["campaigns_found"] = len(targets)
             print(f"\nFound {len(targets)} matching campaigns")
 
             applied = 0
@@ -93,7 +95,9 @@ class WhopAutoApply:
                     applied += 1
                 time.sleep(random.uniform(3, 6))
 
+            result["campaigns_applied"] = applied
             print(f"Applied to {applied} campaign(s)")
 
         finally:
             self.scraper.close()
+        return result
