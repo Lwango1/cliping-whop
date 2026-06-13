@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
-from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL
+from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY
 from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR, load_config
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
@@ -272,10 +272,32 @@ async def get_stats(user: dict = Depends(get_current_user)):
 
 # --- Content files ---
 
-import os
-
 @app.get("/api/content-files")
 async def list_content_files(user: dict = Depends(get_current_user)):
+    if SUPABASE_KEY:
+        try:
+            items = list_files()
+            files = []
+            for item in items:
+                name = item.get("name", "")
+                ext = Path(name).suffix.lower()
+                if ext not in (".mp4", ".mp3", ".jpg", ".png"):
+                    continue
+                url = get_file_url(name)
+                files.append({
+                    "name": name,
+                    "path": url or name,
+                    "size": item.get("metadata", {}).get("size", 0),
+                    "size_str": "",
+                    "ext": ext,
+                    "modified": item.get("created_at", ""),
+                    "url": url,
+                })
+            files.sort(key=lambda x: x["name"], reverse=True)
+            return files
+        except Exception as e:
+            print(f"[API] Supabase list error: {e}")
+
     files = []
     for ext in ("*.mp4", "*.mp3", "*.jpg", "*.png"):
         for p in [PROCESSED_DIR, RAW_DIR]:
@@ -340,7 +362,16 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
             if mixed:
                 clip = mixed
 
-        log_content(user["id"], f"Custom clip from URL", "video", "manual", "created", file_path=str(clip))
+        log_content(user["id"], f"Custom clip from URL", "video", "manual", "created", file_path=clip.name)
+
+        file_url = None
+        if SUPABASE_KEY:
+            storage_path = f"user_{user['id']}/{clip.name}"
+            upload_file(clip, storage_path)
+            file_url = get_file_url(storage_path)
+
+        if file_url:
+            return {"ok": True, "file": file_url, "name": clip.name}
         return {"ok": True, "file": str(clip.relative_to(Path(__file__).parent).as_posix()), "name": clip.name}
     except HTTPException:
         raise
@@ -350,6 +381,14 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
 
 @app.delete("/api/content-files")
 async def delete_content_file(path: str, user: dict = Depends(get_current_user)):
+    if SUPABASE_KEY:
+        try:
+            delete_storage_file(path)
+            log_content(user["id"], "Deleted file", "file", "manual", "deleted", file_path=path)
+            return {"ok": True}
+        except Exception as e:
+            raise HTTPException(500, f"Delete error: {e}")
+
     file_path = Path(__file__).parent / path
     storage_dir = Path(__file__).parent / "storage"
     try:

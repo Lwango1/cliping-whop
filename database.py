@@ -177,3 +177,40 @@ def clean_expired_tokens():
         get_supabase().table("tokens").delete().lt("expires", time.time()).execute()
     except Exception as e:
         print(f"[DB] clean_expired_tokens error: {e}")
+
+
+# --- Storage functions ---
+
+def upload_file(local_path: Path, storage_path: str, bucket: str = "clips") -> Optional[str]:
+    try:
+        with open(local_path, "rb") as f:
+            res = get_supabase().storage.from_(bucket).upload(storage_path, f, {"upsert": "true"})
+        return storage_path
+    except Exception as e:
+        print(f"[DB] upload_file error: {e}")
+    return None
+
+
+def list_files(bucket: str = "clips") -> list[dict]:
+    try:
+        res = get_supabase().storage.from_(bucket).list()
+        return res if res else []
+    except Exception as e:
+        print(f"[DB] list_files error: {e}")
+    return []
+
+
+def get_file_url(path: str, bucket: str = "clips") -> Optional[str]:
+    try:
+        res = get_supabase().storage.from_(bucket).get_public_url(path)
+        return res
+    except Exception as e:
+        print(f"[DB] get_file_url error: {e}")
+    return None
+
+
+def delete_storage_file(path: str, bucket: str = "clips"):
+    try:
+        get_supabase().storage.from_(bucket).remove([path])
+    except Exception as e:
+        print(f"[DB] delete_storage_file error: {e}")

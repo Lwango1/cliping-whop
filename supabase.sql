@@ -1,5 +1,6 @@
 -- Exécute ce SQL dans Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql/new)
 -- pour créer les tables nécessaires.
+-- Puis va dans Storage > Create bucket > nomme-le "clips" (public)
 
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
