@@ -408,10 +408,24 @@
                 <div class="col-md-8 mx-auto">
                     <div class="card" style="text-align:center">
                         <div style="font-size:48px;margin-bottom:12px">🤝</div>
-                        <h3 style="color:#fff;margin-bottom:8px">Gagne <span style="color:#ffd700">20%</span> sur chaque filleul</h3>
+                        <h3 style="color:#fff;margin-bottom:8px">Gagne jusqu'à <span style="color:#ffd700">20%</span> sur tes filleuls</h3>
                         <p style="color:#8892b0;font-size:14px;margin-bottom:20px">
-                            Partage ton lien de parrainage. Quand un filleul s'abonne, tu gagnes 20% de son paiement chaque mois !
+                            Partage ton lien de parrainage. Plus tu parraines, plus tu gagnes !
                         </p>
+                        <div id="referralTiers" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:20px">
+                            <div style="background:#1a2340;border-radius:8px;padding:8px 16px;text-align:center">
+                                <div style="font-size:20px;font-weight:700;color:#ffd700">20%</div>
+                                <div style="font-size:11px;color:#8892b0">1er filleul</div>
+                            </div>
+                            <div style="background:#1a2340;border-radius:8px;padding:8px 16px;text-align:center">
+                                <div style="font-size:20px;font-weight:700;color:#fbbf24">10%</div>
+                                <div style="font-size:11px;color:#8892b0">2e filleul</div>
+                            </div>
+                            <div style="background:#1a2340;border-radius:8px;padding:8px 16px;text-align:center">
+                                <div style="font-size:20px;font-weight:700;color:#f87171">5%</div>
+                                <div style="font-size:11px;color:#8892b0">3e+ filleul</div>
+                            </div>
+                        </div>
                         <div class="card" style="text-align:left;margin-bottom:16px">
                             <label class="form-label">Ton lien de parrainage</label>
                             <div style="display:flex;gap:8px">
@@ -917,6 +931,16 @@
             if (info) {
                 document.getElementById('referralLink').value = info.link;
                 document.getElementById('referralEarnings').textContent = `${info.earnings.toFixed(2)}$`;
+                // Update the current rate display
+                const tiers = info.tiers || [];
+                for (let i = 0; i < tiers.length; i++) {
+                    const el = document.querySelectorAll('#referralTiers > div');
+                    if (el[i]) {
+                        if (info.referral_count >= tiers[i].min) {
+                            el[i].style.border = '2px solid #ffd700';
+                        }
+                    }
+                }
             }
             const list = await apiGet('/api/referral/list');
             const el = document.getElementById('referralList');

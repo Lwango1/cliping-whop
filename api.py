@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
-from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY, SUBSCRIPTION_PLANS, create_subscription, get_subscription, get_all_subscriptions, get_pending_subscriptions, activate_subscription, deactivate_subscription, get_referral_code, get_referrals, get_referral_earnings, get_user_by_referral_code, REFERRAL_COMMISSION
+from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY, SUBSCRIPTION_PLANS, create_subscription, get_subscription, get_all_subscriptions, get_pending_subscriptions, activate_subscription, deactivate_subscription, get_referral_code, get_referrals, get_referral_earnings, get_user_by_referral_code, get_referral_commission
 from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR, load_config
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
@@ -513,11 +513,20 @@ async def referral_info(user: dict = Depends(get_current_user)):
         from database import generate_referral_code, set_referral_code
         code = generate_referral_code(f"{user['id']}-{user['username']}")
         set_referral_code(user["id"], code)
+    referrals = get_referrals(user["id"])
+    referral_count = len(referrals) if referrals else 0
+    next_rate = get_referral_commission(referral_count)
     return {
         "code": code,
         "link": f"https://cliping-whop.onrender.com?ref={code}",
-        "commission": int(REFERRAL_COMMISSION * 100),
+        "commission": int(next_rate * 100),
         "earnings": get_referral_earnings(user["id"]),
+        "referral_count": referral_count,
+        "tiers": [
+            {"min": 0, "rate": 20},
+            {"min": 1, "rate": 10},
+            {"min": 2, "rate": 5},
+        ],
     }
 
 

@@ -65,5 +65,6 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     paid_at DOUBLE PRECISION,
     expires_at DOUBLE PRECISION,
     created_at DOUBLE PRECISION NOT NULL,
-    referred_by BIGINT DEFAULT NULL REFERENCES users(id)
+    referred_by BIGINT DEFAULT NULL REFERENCES users(id),
+    commission_rate DOUBLE PRECISION DEFAULT NULL
 );

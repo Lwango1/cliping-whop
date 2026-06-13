@@ -196,6 +196,11 @@ def create_subscription(user_id: int, plan: str, tx_hash: str, status: str = "pe
         now = time.time()
         user = get_user_by_id(user_id)
         referred_by = user.get("referred_by") if user else None
+        commission_rate = None
+        if referred_by:
+            existing = get_referrals(referred_by)
+            idx = len(existing) if existing else 0
+            commission_rate = get_referral_commission(idx)
         data = {
             "user_id": user_id,
             "plan": plan,
@@ -205,6 +210,7 @@ def create_subscription(user_id: int, plan: str, tx_hash: str, status: str = "pe
             "expires_at": now + 2592000,
             "created_at": now,
             "referred_by": referred_by,
+            "commission_rate": commission_rate,
         }
         res = get_supabase().table("subscriptions").insert(data).execute()
         if res.data:
@@ -263,7 +269,17 @@ def deactivate_subscription(subscription_id: int):
 
 # --- Referral functions ---
 
-REFERRAL_COMMISSION = 0.20  # 20%
+REFERRAL_TIERS = [
+    (0, 0.20),   # 1er filleul → 20%
+    (1, 0.10),   # 2e filleul  → 10%
+    (2, 0.05),   # 3e+ filleul → 5%
+]
+
+def get_referral_commission(referral_index: int) -> float:
+    for threshold, rate in REFERRAL_TIERS:
+        if referral_index >= threshold:
+            result = rate
+    return result
 
 def generate_referral_code(seed) -> str:
     import hashlib
@@ -309,12 +325,13 @@ def get_referrals(user_id: int) -> list[dict]:
 
 def get_referral_earnings(user_id: int) -> float:
     try:
-        res = get_supabase().table("subscriptions").select("plan, paid_at").eq("referred_by", user_id).eq("status", "active").execute()
+        res = get_supabase().table("subscriptions").select("plan, commission_rate").eq("referred_by", user_id).eq("status", "active").execute()
         total = 0
         if res.data:
             for sub in res.data:
                 plan_price = SUBSCRIPTION_PLANS.get(sub["plan"], {}).get("price", 0)
-                total += plan_price * REFERRAL_COMMISSION
+                rate = sub.get("commission_rate") or 0.05
+                total += plan_price * rate
         return total
     except Exception as e:
         print(f"[DB] get_referral_earnings error: {e}")
