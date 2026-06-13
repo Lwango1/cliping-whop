@@ -124,6 +124,9 @@
             } catch (e) { alert('loginAlert', 'Erreur de connexion au serveur'); }
         });
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref') || '';
+
         document.getElementById('registerBtn').addEventListener('click', async () => {
             const username = document.getElementById('regUsername').value.trim();
             const email = document.getElementById('regEmail').value.trim();
@@ -133,10 +136,12 @@
             if (password !== password2) return alert('registerAlert', 'Les mots de passe ne correspondent pas');
             if (password.length < 6) return alert('registerAlert', 'Mot de passe trop court (min 6 caracteres)');
             try {
+                const body = { username, email, password };
+                if (refCode) body.ref = refCode;
                 const r = await fetch('/api/register', { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ username, email, password }) 
+                    body: JSON.stringify(body) 
                 });
                 if (!r.ok) { const e = await r.json(); return alert('registerAlert', e.detail || 'Erreur lors de l inscription'); }
                 const data = await r.json();

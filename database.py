@@ -28,14 +28,17 @@ def init_db():
 
 # --- User functions ---
 
-def create_user(username: str, email: str, password_hash: str) -> Optional[int]:
+def create_user(username: str, email: str, password_hash: str, referred_by: Optional[int] = None) -> Optional[int]:
     try:
         data = {
             "username": username,
             "email": email,
             "password_hash": password_hash,
             "created_at": time.time(),
+            "referral_code": generate_referral_code(int(time.time() * 1000)),
         }
+        if referred_by:
+            data["referred_by"] = referred_by
         res = get_supabase().table("users").insert(data).execute()
         if res.data:
             return res.data[0]["id"]
@@ -191,6 +194,8 @@ SUBSCRIPTION_PLANS = {
 def create_subscription(user_id: int, plan: str, tx_hash: str, status: str = "pending") -> Optional[int]:
     try:
         now = time.time()
+        user = get_user_by_id(user_id)
+        referred_by = user.get("referred_by") if user else None
         data = {
             "user_id": user_id,
             "plan": plan,
@@ -199,6 +204,7 @@ def create_subscription(user_id: int, plan: str, tx_hash: str, status: str = "pe
             "paid_at": now,
             "expires_at": now + 2592000,
             "created_at": now,
+            "referred_by": referred_by,
         }
         res = get_supabase().table("subscriptions").insert(data).execute()
         if res.data:
@@ -253,6 +259,66 @@ def deactivate_subscription(subscription_id: int):
         get_supabase().table("subscriptions").update({"status": "expired"}).eq("id", subscription_id).execute()
     except Exception as e:
         print(f"[DB] deactivate_subscription error: {e}")
+
+
+# --- Referral functions ---
+
+REFERRAL_COMMISSION = 0.20  # 20%
+
+def generate_referral_code(seed) -> str:
+    import hashlib
+    h = hashlib.md5(f"{seed}".encode()).hexdigest()[:8]
+    return h
+
+
+def get_referral_code(user_id: int) -> Optional[str]:
+    try:
+        res = get_supabase().table("users").select("referral_code").eq("id", user_id).limit(1).execute()
+        if res.data and res.data[0].get("referral_code"):
+            return res.data[0]["referral_code"]
+    except:
+        pass
+    return None
+
+
+def set_referral_code(user_id: int, code: str):
+    try:
+        get_supabase().table("users").update({"referral_code": code}).eq("id", user_id).execute()
+    except Exception as e:
+        print(f"[DB] set_referral_code error: {e}")
+
+
+def get_user_by_referral_code(code: str) -> Optional[dict]:
+    try:
+        res = get_supabase().table("users").select("*").eq("referral_code", code).limit(1).execute()
+        if res.data:
+            return res.data[0]
+    except:
+        pass
+    return None
+
+
+def get_referrals(user_id: int) -> list[dict]:
+    try:
+        res = get_supabase().table("users").select("id, username, email, created_at").eq("referred_by", user_id).order("id", desc=True).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        print(f"[DB] get_referrals error: {e}")
+    return []
+
+
+def get_referral_earnings(user_id: int) -> float:
+    try:
+        res = get_supabase().table("subscriptions").select("plan, paid_at").eq("referred_by", user_id).eq("status", "active").execute()
+        total = 0
+        if res.data:
+            for sub in res.data:
+                plan_price = SUBSCRIPTION_PLANS.get(sub["plan"], {}).get("price", 0)
+                total += plan_price * REFERRAL_COMMISSION
+        return total
+    except Exception as e:
+        print(f"[DB] get_referral_earnings error: {e}")
+    return 0.0
 
 
 # --- Storage functions ---

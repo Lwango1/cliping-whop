@@ -107,6 +107,7 @@
         <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Camp.</span></div>
         <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Logs</span></div>
         <div class="nav-item" onclick="showPage('subscription')"><span>💎</span><span>Abonnement</span></div>
+        <div class="nav-item" onclick="showPage('referral')"><span>🤝</span><span>Parrainage</span></div>
         <div class="nav-item d-none" id="installBtnMobile" onclick="triggerInstall()"><span>📲</span><span>App</span></div>
     </div>
 
@@ -120,6 +121,7 @@
         <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Campagnes</span></div>
         <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Historique</span></div>
         <div class="nav-item" onclick="showPage('subscription')"><span>💎</span><span>Abonnement</span></div>
+        <div class="nav-item" onclick="showPage('referral')"><span>🤝</span><span>Parrainage</span></div>
         <div class="nav-item d-none" id="installBtnNav" onclick="triggerInstall()" style="cursor:pointer"><span>📲</span><span>Installer</span></div>
         <div style="flex:1"></div>
         <div class="user-badge">
@@ -398,6 +400,47 @@
                 <div id="adminPendingList"><p style="color:#8892b0">Aucun paiement en attente.</p></div>
             </div>
         </div>
+
+        <!-- Referral -->
+        <div id="page-referral" class="page">
+            <h2>🤝 Parrainage</h2>
+            <div class="row">
+                <div class="col-md-8 mx-auto">
+                    <div class="card" style="text-align:center">
+                        <div style="font-size:48px;margin-bottom:12px">🤝</div>
+                        <h3 style="color:#fff;margin-bottom:8px">Gagne <span style="color:#ffd700">20%</span> sur chaque filleul</h3>
+                        <p style="color:#8892b0;font-size:14px;margin-bottom:20px">
+                            Partage ton lien de parrainage. Quand un filleul s'abonne, tu gagnes 20% de son paiement chaque mois !
+                        </p>
+                        <div class="card" style="text-align:left;margin-bottom:16px">
+                            <label class="form-label">Ton lien de parrainage</label>
+                            <div style="display:flex;gap:8px">
+                                <input id="referralLink" class="form-control" readonly>
+                                <button class="btn btn-gold btn-sm" onclick="copyReferralLink()">Copier</button>
+                            </div>
+                        </div>
+                        <div class="row g-3" id="referralStats">
+                            <div class="col-6">
+                                <div class="card" style="text-align:center;padding:16px">
+                                    <h4 style="font-size:11px">FILLEULS</h4>
+                                    <div class="value" id="referralCount">0</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card" style="text-align:center;padding:16px;border-color:#ffd700">
+                                    <h4 style="font-size:11px">GAINS</h4>
+                                    <div class="value" id="referralEarnings" style="color:#ffd700">0$</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h4>Mes filleuls</h4>
+                        <div id="referralList"><p style="color:#8892b0">Aucun filleul pour le moment.</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Payment Modal -->
@@ -493,6 +536,7 @@
             if (name === 'content') loadContent();
             if (name === 'automation') loadSchedulerStatus();
             if (name === 'subscription') loadSubscriptionPage();
+            if (name === 'referral') loadReferralPage();
         }
 
         async function apiGet(url) {
@@ -865,6 +909,37 @@
                 btn.disabled = false;
                 btn.innerHTML = 'Vérifier le paiement';
             }
+        }
+
+        // --- Referral ---
+        async function loadReferralPage() {
+            const info = await apiGet('/api/referral/info');
+            if (info) {
+                document.getElementById('referralLink').value = info.link;
+                document.getElementById('referralEarnings').textContent = `${info.earnings.toFixed(2)}$`;
+            }
+            const list = await apiGet('/api/referral/list');
+            const el = document.getElementById('referralList');
+            const countEl = document.getElementById('referralCount');
+            if (list && list.referrals && list.referrals.length) {
+                countEl.textContent = list.referrals.length;
+                el.innerHTML = list.referrals.map(r =>
+                    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1e2a45;font-size:14px">
+                        <span style="color:#fff">${r.username}</span>
+                        <span style="color:#8892b0">${r.email}</span>
+                        <span style="color:#8892b0">${new Date(r.created_at*1000).toLocaleDateString('fr-FR')}</span>
+                    </div>`
+                ).join('');
+            } else {
+                countEl.textContent = '0';
+                el.innerHTML = '<p style="color:#8892b0">Aucun filleul pour le moment. Partage ton lien !</p>';
+            }
+        }
+
+        function copyReferralLink() {
+            const input = document.getElementById('referralLink');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => toast('Lien copié !'));
         }
 
         function togglePwd(id, btn) {

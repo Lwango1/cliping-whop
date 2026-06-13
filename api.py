@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
-from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY, SUBSCRIPTION_PLANS, create_subscription, get_subscription, get_all_subscriptions, get_pending_subscriptions, activate_subscription, deactivate_subscription
+from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY, SUBSCRIPTION_PLANS, create_subscription, get_subscription, get_all_subscriptions, get_pending_subscriptions, activate_subscription, deactivate_subscription, get_referral_code, get_referrals, get_referral_earnings, get_user_by_referral_code, REFERRAL_COMMISSION
 from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR, load_config
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
@@ -157,6 +157,7 @@ class RegisterRequest(BaseModel):
     username: str
     email: str
     password: str
+    ref: Optional[str] = None
 
 
 @app.post("/api/register")
@@ -166,7 +167,13 @@ async def register(req: RegisterRequest):
     if get_user_by_email(req.email):
         raise HTTPException(400, "Email already exists")
 
-    user_id = create_user(req.username, req.email, hash_password(req.password))
+    referred_by = None
+    if req.ref:
+        referrer = get_user_by_referral_code(req.ref.strip())
+        if referrer:
+            referred_by = referrer["id"]
+
+    user_id = create_user(req.username, req.email, hash_password(req.password), referred_by=referred_by)
     if not user_id:
         raise HTTPException(500, "Failed to create user")
 
@@ -495,6 +502,28 @@ async def all_subscriptions(user: dict = Depends(get_current_user)):
 @app.get("/api/subscription/address")
 async def subscription_address():
     return {"address": CRYPTO_WALLET_ADDRESS, "network": "BNB (BEP-20 / BSC)"}
+
+
+# --- Referral endpoints ---
+
+@app.get("/api/referral/info")
+async def referral_info(user: dict = Depends(get_current_user)):
+    code = get_referral_code(user["id"])
+    if not code:
+        from database import generate_referral_code, set_referral_code
+        code = generate_referral_code(f"{user['id']}-{user['username']}")
+        set_referral_code(user["id"], code)
+    return {
+        "code": code,
+        "link": f"https://cliping-whop.onrender.com?ref={code}",
+        "commission": int(REFERRAL_COMMISSION * 100),
+        "earnings": get_referral_earnings(user["id"]),
+    }
+
+
+@app.get("/api/referral/list")
+async def referral_list(user: dict = Depends(get_current_user)):
+    return {"referrals": get_referrals(user["id"])}
 
 
 # --- Serve static files ---

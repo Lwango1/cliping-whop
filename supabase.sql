@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS users (
     facebook_access_token TEXT DEFAULT '',
     posts_per_day INTEGER DEFAULT 3,
     campaign_keywords TEXT DEFAULT '["world cup","canada","football"]',
-    content_sources TEXT DEFAULT '["youtube_replays","sports_api"]'
+    content_sources TEXT DEFAULT '["youtube_replays","sports_api"]',
+    referral_code TEXT UNIQUE DEFAULT NULL,
+    referred_by BIGINT DEFAULT NULL REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS tokens (
@@ -52,4 +54,16 @@ CREATE TABLE IF NOT EXISTS content_log (
     file_path TEXT DEFAULT '',
     published_at DOUBLE PRECISION,
     error TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    tx_hash TEXT DEFAULT '',
+    paid_at DOUBLE PRECISION,
+    expires_at DOUBLE PRECISION,
+    created_at DOUBLE PRECISION NOT NULL,
+    referred_by BIGINT DEFAULT NULL REFERENCES users(id)
 );
