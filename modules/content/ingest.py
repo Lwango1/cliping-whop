@@ -114,97 +114,99 @@ class ContentIngestor:
         video_id = match.group(1)
 
         import asyncio
-        from playwright.async_api import async_playwright
-        from urllib.parse import parse_qs
-
         suffix = int(time.time())
         output_path = output_dir / f"clip_{suffix}.mp4"
 
         try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox", "--disable-blink-features=AutomationControlled"]
-                )
-                ctx = await browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-                    viewport={"width": 1920, "height": 1080},
-                    locale="en-US",
-                )
-                await ctx.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-                    Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
-                    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-                """)
-                page = await ctx.new_page()
-                await page.goto(query, wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_timeout(8000)
+            # Get YouTube cookies first (vital for server IPs)
+            sess = requests.Session()
+            sess.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+            })
+            await asyncio.to_thread(sess.get, "https://www.youtube.com", timeout=15)
 
-                player_data = await page.evaluate("""() => {
-                    try { return ytInitialPlayerResponse; } catch(e) { return null; }
-                }""")
-                await browser.close()
+            # Call YouTube player API (TVHTML5 client is less restricted)
+            api_key = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+            body = {
+                "videoId": video_id,
+                "context": {
+                    "client": {
+                        "clientName": "TVHTML5",
+                        "clientVersion": "7.20250101",
+                        "osName": "Linux",
+                        "osVersion": "6.1",
+                        "platform": "TV",
+                    }
+                }
+            }
+            resp = await asyncio.to_thread(
+                sess.post,
+                f"https://www.youtube.com/youtubei/v1/player?key={api_key}",
+                json=body, timeout=30
+            )
+            if resp.status_code != 200:
+                detail = resp.text[:300] if resp.text else "no body"
+                return f"YouTube API {resp.status_code}: {detail}"
 
-            if not player_data:
-                return "No player data found on page"
-
-            playability = player_data.get("playabilityStatus", {})
+            data = resp.json()
+            playability = data.get("playabilityStatus", {})
             if playability.get("status") != "OK":
                 reason = playability.get("reason", playability.get("status", "unknown"))
                 return f"Video not playable: {reason}"
 
-            streaming = player_data.get("streamingData")
+            streaming = data.get("streamingData")
             if not streaming:
-                return f"No streaming data (playability: {playability.get('status', '?')} - {playability.get('reason', 'no reason')})"
+                return f"No streaming data ({playability.get('status','?')})"
 
             formats = streaming.get("formats") or []
             adaptive = streaming.get("adaptiveFormats") or []
 
+            from urllib.parse import parse_qs
+            def get_url(fmt):
+                u = fmt.get("url")
+                if u:
+                    return u
+                c = fmt.get("signatureCipher") or fmt.get("cipher", "")
+                if c:
+                    return parse_qs(c).get("url", [None])[0]
+                return None
+
             dl_headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                 "Referer": "https://www.youtube.com/",
             }
 
-            def get_url(fmt):
-                url = fmt.get("url")
-                if url:
-                    return url
-                cipher = fmt.get("signatureCipher") or fmt.get("cipher", "")
-                if cipher:
-                    qs = parse_qs(cipher)
-                    return qs.get("url", [None])[0]
-                return None
-
             chosen = None
-            for fmt in formats:
-                url = get_url(fmt)
-                if url and fmt.get("height", 0) <= 720:
-                    if not chosen or fmt.get("height", 0) > chosen.get("height", 0):
-                        fmt["_url"] = url
-                        chosen = fmt
+            for f in formats:
+                u = get_url(f)
+                if u and f.get("height", 0) <= 720:
+                    if not chosen or f["height"] > chosen["height"]:
+                        f["_url"] = u
+                        chosen = f
 
             if not chosen and adaptive:
-                videos = [f for f in adaptive if get_url(f) and f.get("mimeType", "").startswith("video/") and f.get("height", 0) <= 720]
-                for f in videos:
+                vids = [f for f in adaptive if get_url(f) and f.get("mimeType","").startswith("video/") and f.get("height",0) <= 720]
+                for f in vids:
                     f["_url"] = get_url(f)
-                audios = [f for f in adaptive if get_url(f) and f.get("mimeType", "").startswith("audio/")]
-                for f in audios:
+                auds = [f for f in adaptive if get_url(f) and f.get("mimeType","").startswith("audio/")]
+                for f in auds:
                     f["_url"] = get_url(f)
-                bv = max(videos, key=lambda f: f.get("height", 0)) if videos else None
-                ba = max(audios, key=lambda f: f.get("bitrate", 0)) if audios else None
+                bv = max(vids, key=lambda f: f["height"]) if vids else None
+                ba = max(auds, key=lambda f: f.get("bitrate",0)) if auds else None
                 if bv and ba:
                     from utils import get_ffmpeg_path
-                    ffmpeg = get_ffmpeg_path()
+                    ff = get_ffmpeg_path()
                     vp = output_dir / f"clip_{suffix}_v.mp4"
                     ap = output_dir / f"clip_{suffix}_a.m4a"
-                    vr = await asyncio.to_thread(requests.get, bv["_url"], headers=dl_headers, timeout=120)
+                    vr = await asyncio.to_thread(sess.get, bv["_url"], headers=dl_headers, timeout=120)
                     with open(vp, "wb") as f:
                         f.write(vr.content)
-                    ar = await asyncio.to_thread(requests.get, ba["_url"], headers=dl_headers, timeout=120)
+                    ar = await asyncio.to_thread(sess.get, ba["_url"], headers=dl_headers, timeout=120)
                     with open(ap, "wb") as f:
                         f.write(ar.content)
                     import subprocess
-                    await asyncio.to_thread(subprocess.run, [ffmpeg, "-y", "-i", str(vp), "-i", str(ap), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
+                    await asyncio.to_thread(subprocess.run, [ff, "-y", "-i", str(vp), "-i", str(ap), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
                     vp.unlink(missing_ok=True)
                     ap.unlink(missing_ok=True)
                     if output_path.exists() and output_path.stat().st_size > 100000:
@@ -216,20 +218,18 @@ class ContentIngestor:
             if not chosen:
                 return "No downloadable format found"
 
-            resp = await asyncio.to_thread(requests.get, chosen["_url"], headers=dl_headers, timeout=300)
+            resp = await asyncio.to_thread(sess.get, chosen["_url"], headers=dl_headers, timeout=300)
             with open(output_path, "wb") as f:
                 f.write(resp.content)
 
             if output_path.exists() and output_path.stat().st_size > 100000:
                 print(f"[Ingest] Downloaded: {output_path.name}")
                 return output_path
-
             return "Downloaded file too small"
 
         except Exception as e:
             import traceback
-            tb = traceback.format_exc()
-            print(f"[Ingest] Download failed: {e}\n{tb}")
+            print(f"[Ingest] Download failed: {e}\n{traceback.format_exc()}")
             return f"Download failed: {e}"
 
     @staticmethod
