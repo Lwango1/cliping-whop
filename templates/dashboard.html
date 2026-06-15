@@ -285,7 +285,7 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Duree (s)</label>
-                        <input id="ytDurationInput" type="number" class="form-control" value="60">
+                        <input id="ytDurationInput" type="number" class="form-control" value="120">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Equipe domicile (optionnel)</label>
@@ -679,7 +679,7 @@
         async function generateFromUrl() {
             const url = document.getElementById('ytUrlInput').value.trim();
             const start = parseFloat(document.getElementById('ytStartInput').value) || 10;
-            const duration = parseFloat(document.getElementById('ytDurationInput').value) || 60;
+            const duration = parseFloat(document.getElementById('ytDurationInput').value) || 120;
             const teamHome = document.getElementById('ytTeamHome').value.trim();
             const teamAway = document.getElementById('ytTeamAway').value.trim();
             const scoreHome = document.getElementById('ytScoreHome').value.trim();

@@ -303,7 +303,7 @@ async def list_content_files(user: dict = Depends(get_current_user)):
 class GenerateFromURLRequest(BaseModel):
     url: str
     start_time: float = 10
-    duration: float = 60
+    duration: float = 120
     team_home: str = ""
     team_away: str = ""
     score_home: str = ""
