@@ -131,6 +131,7 @@ class ContentIngestor:
             output_path = output_dir / f"clip_{suffix}.mp4"
 
             # YouTube internal web API (same endpoint the website uses)
+            import asyncio
             api_key = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
             api_url = f"https://www.youtube.com/youtubei/v1/player?key={api_key}"
             headers = {
@@ -152,7 +153,7 @@ class ContentIngestor:
                 }
             }
 
-            resp = requests.post(api_url, json=body, headers=headers, timeout=30)
+            resp = await asyncio.to_thread(requests.post, api_url, json=body, headers=headers, timeout=30)
             if resp.status_code != 200:
                 return f"YouTube API returned status {resp.status_code}"
 
@@ -201,17 +202,17 @@ class ContentIngestor:
                 best_a = max(audios, key=lambda f: f.get("bitrate", 0)) if audios else None
                 if best_v and best_a:
                     from utils import get_ffmpeg_path
-                    import subprocess
+                    import asyncio, subprocess
                     ffmpeg = get_ffmpeg_path()
                     vid_path = output_dir / f"clip_{suffix}_v.mp4"
                     aud_path = output_dir / f"clip_{suffix}_a.m4a"
-                    vresp = requests.get(best_v["_url"], headers=dl_headers, timeout=120)
+                    vresp = await asyncio.to_thread(requests.get, best_v["_url"], headers=dl_headers, timeout=120)
                     with open(vid_path, "wb") as f:
                         f.write(vresp.content)
-                    aresp = requests.get(best_a["_url"], headers=dl_headers, timeout=120)
+                    aresp = await asyncio.to_thread(requests.get, best_a["_url"], headers=dl_headers, timeout=120)
                     with open(aud_path, "wb") as f:
                         f.write(aresp.content)
-                    subprocess.run([ffmpeg, "-y", "-i", str(vid_path), "-i", str(aud_path), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
+                    await asyncio.to_thread(subprocess.run, [ffmpeg, "-y", "-i", str(vid_path), "-i", str(aud_path), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
                     vid_path.unlink(missing_ok=True)
                     aud_path.unlink(missing_ok=True)
                     if output_path.exists() and output_path.stat().st_size > 100000:
@@ -223,7 +224,7 @@ class ContentIngestor:
             if not chosen:
                 return "No downloadable format found"
 
-            resp = requests.get(chosen["_url"], headers=dl_headers, timeout=300)
+            resp = await asyncio.to_thread(requests.get, chosen["_url"], headers=dl_headers, timeout=300)
             with open(output_path, "wb") as f:
                 f.write(resp.content)
 
