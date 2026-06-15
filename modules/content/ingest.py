@@ -132,6 +132,8 @@ class ContentIngestor:
                 "geo_bypass": True,
                 "geo_bypass_country": "US",
                 "throttled_rate": "500K",
+                "sleep_interval_requests": 1,
+                "extractor_retries": 3,
                 "extractor_args": {
                     "youtube": {
                         "player_client": ["ios", "web_embedded", "android_embedded"],
