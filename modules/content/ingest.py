@@ -121,6 +121,7 @@ class ContentIngestor:
             import yt_dlp
 
             ffmpeg_loc = get_ffmpeg_path()
+            cookie_file = Path(__file__).parent.parent / "youtube_cookies.txt"
             ydl_opts = {
                 "format": "bestvideo[height<=720]+bestaudio/best[height<=720]",
                 "outtmpl": str(output_path),
@@ -129,6 +130,7 @@ class ContentIngestor:
                 "no_warnings": True,
                 "ffmpeg_location": ffmpeg_loc,
                 "merge_output_format": "mp4",
+                "cookiefile": str(cookie_file),
                 "geo_bypass": True,
                 "geo_bypass_country": "US",
                 "throttled_rate": "500K",
