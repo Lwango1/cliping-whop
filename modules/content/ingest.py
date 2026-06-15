@@ -99,7 +99,7 @@ class ContentIngestor:
             return []
 
     @staticmethod
-    def download_youtube_replay(query: str, max_duration: int = 300, output_dir: Optional[Path] = None) -> Optional[Path]:
+    def download_youtube_replay(query: str, max_duration: int = 300, output_dir: Optional[Path] = None):
         output_dir = output_dir or RAW_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -153,8 +153,10 @@ class ContentIngestor:
                 return None
 
         except Exception as e:
-            print(f"[Ingest] Download failed: {e}")
-            return None
+            import traceback
+            tb = traceback.format_exc()
+            print(f"[Ingest] Download failed: {e}\n{tb}")
+            return f"Download failed: {e}"
 
     @staticmethod
     def cache_event_data(events: list[dict], cache_file: str = "events_cache.json"):

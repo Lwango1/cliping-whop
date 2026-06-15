@@ -318,8 +318,10 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
             max_duration=300,
             output_dir=RAW_DIR,
         )
+        if isinstance(downloaded, str):
+            raise HTTPException(400, f"Download failed: {downloaded}")
         if not downloaded:
-            raise HTTPException(400, "Failed to download video from URL")
+            raise HTTPException(400, "Download returned no file")
 
         clip = VideoGenerator.generate_pro_clip(
             input_video=downloaded,
