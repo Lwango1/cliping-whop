@@ -121,25 +121,34 @@ class ContentIngestor:
             return "Only direct YouTube URLs are supported"
 
         try:
-            from playwright.sync_api import sync_playwright
-
             suffix = int(time.time())
             output_path = output_dir / f"clip_{suffix}.mp4"
 
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True, args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"])
-                ctx = browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-                )
-                page = ctx.new_page()
-                page.goto(query, wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_timeout(5000)
+            import asyncio
+            from playwright.async_api import async_playwright
 
-                player_data = page.evaluate("""() => {
-                    try { return ytInitialPlayerResponse; } catch(e) { return null; }
-                }""")
-                cookie_dict = {c["name"]: c["value"] for c in ctx.cookies()}
-                browser.close()
+            async def _download():
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch(headless=True, args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"])
+                    ctx = await browser.new_context(
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+                    )
+                    page = await ctx.new_page()
+                    await page.goto(query, wait_until="domcontentloaded", timeout=60000)
+                    await page.wait_for_timeout(5000)
+
+                    player_data = await page.evaluate("""() => {
+                        try { return ytInitialPlayerResponse; } catch(e) { return null; }
+                    }""")
+                    raw_cookies = await ctx.cookies()
+                    await browser.close()
+                return player_data, {c["name"]: c["value"] for c in raw_cookies}
+
+            loop = asyncio.new_event_loop()
+            try:
+                player_data, cookie_dict = loop.run_until_complete(_download())
+            finally:
+                loop.close()
 
             if not player_data:
                 return "No player data found on page"
