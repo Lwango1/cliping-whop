@@ -359,6 +359,14 @@ def list_files(bucket: str = "clips") -> list[dict]:
     return []
 
 
+def bucket_exists(bucket: str = "clips") -> bool:
+    try:
+        get_supabase().storage.from_(bucket).list(limit=1)
+        return True
+    except Exception:
+        return False
+
+
 def get_file_url(path: str, bucket: str = "clips") -> Optional[str]:
     try:
         res = get_supabase().storage.from_(bucket).get_public_url(path)

@@ -678,11 +678,12 @@
             }
             let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Fichier</th><th>Taille</th><th>Type</th><th>Apercu</th><th>Action</th></tr></thead><tbody>';
             files.slice(0, 30).forEach(f => {
+                const src = f.path.startsWith('http') ? f.path : '/' + f.path;
                 const preview = f.ext === '.mp4'
-                    ? `<video controls style="max-width:180px;max-height:100px;border-radius:4px"><source src="/${f.path}"></video>`
+                    ? `<video controls style="max-width:180px;max-height:100px;border-radius:4px"><source src="${src}"></video>`
                     : f.ext === '.mp3'
-                    ? `<audio controls style="max-width:180px"><source src="/${f.path}"></audio>`
-                    : `<img src="/${f.path}" style="max-width:100px;max-height:60px;border-radius:4px">`;
+                    ? `<audio controls style="max-width:180px"><source src="${src}"></audio>`
+                    : `<img src="${src}" style="max-width:100px;max-height:60px;border-radius:4px">`;
                 html += `<tr><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</td><td>${f.size_str}</td><td>${f.ext}</td><td>${preview}</td><td><button class="btn btn-danger-ghost btn-sm" onclick="deleteFile('${f.path}')">🗑</button></td></tr>`;
             });
             html += '</tbody></table></div>';
@@ -715,7 +716,7 @@
                 }
                 const data = await r.json();
                 if (data.ok) {
-                    res.innerHTML = `<span style="color:#4ade80">Clip cree !</span> <a href="/${data.file}" target="_blank" style="color:#ffd700">Voir la video</a>`;
+                    res.innerHTML = `<span style="color:#4ade80">Clip cree !</span> <a href="${data.file}" target="_blank" style="color:#ffd700">Voir la video</a>`;
                     loadContent();
                 } else {
                     res.innerHTML = `<span style="color:#f87171">Erreur: ${data.detail || 'inconnue'}</span>`;

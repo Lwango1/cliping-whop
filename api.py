@@ -281,30 +281,6 @@ async def get_stats(user: dict = Depends(get_current_user)):
 
 @app.get("/api/content-files")
 async def list_content_files(user: dict = Depends(get_current_user)):
-    if SUPABASE_KEY:
-        try:
-            items = list_files()
-            files = []
-            for item in items:
-                name = item.get("name", "")
-                ext = Path(name).suffix.lower()
-                if ext not in (".mp4", ".mp3", ".jpg", ".png"):
-                    continue
-                url = get_file_url(name)
-                files.append({
-                    "name": name,
-                    "path": url or name,
-                    "size": item.get("metadata", {}).get("size", 0),
-                    "size_str": "",
-                    "ext": ext,
-                    "modified": item.get("created_at", ""),
-                    "url": url,
-                })
-            files.sort(key=lambda x: x["name"], reverse=True)
-            return files
-        except Exception as e:
-            print(f"[API] Supabase list error: {e}")
-
     files = []
     for ext in ("*.mp4", "*.mp3", "*.jpg", "*.png"):
         for p in [PROCESSED_DIR, RAW_DIR]:
@@ -337,11 +313,16 @@ class GenerateFromURLRequest(BaseModel):
 @app.post("/api/generate-from-url")
 async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(get_current_user)):
     try:
+        import traceback, sys
+        with open("logs/api_debug.log", "a") as f:
+            f.write(f"[API] Downloading URL: {req.url}\n")
         downloaded = ContentIngestor.download_youtube_replay(
             req.url,
             max_duration=300,
             output_dir=RAW_DIR,
         )
+        with open("logs/api_debug.log", "a") as f:
+            f.write(f"[API] Download result: {downloaded}\n")
         if not downloaded:
             raise HTTPException(400, "Failed to download video from URL")
 
@@ -371,15 +352,19 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
 
         log_content(user["id"], f"Custom clip from URL", "video", "manual", "created", file_path=clip.name)
 
-        file_url = None
+        local_path = str(clip.relative_to(Path(__file__).parent).as_posix())
         if SUPABASE_KEY:
-            storage_path = f"user_{user['id']}/{clip.name}"
-            upload_file(clip, storage_path)
-            file_url = get_file_url(storage_path)
+            try:
+                storage_path = f"user_{user['id']}/{clip.name}"
+                uploaded = upload_file(clip, storage_path)
+                if uploaded:
+                    file_url = get_file_url(storage_path)
+                    if file_url:
+                        return {"ok": True, "file": file_url, "name": clip.name}
+            except Exception as e:
+                print(f"[API] Supabase upload error (using local path): {e}")
 
-        if file_url:
-            return {"ok": True, "file": file_url, "name": clip.name}
-        return {"ok": True, "file": str(clip.relative_to(Path(__file__).parent).as_posix()), "name": clip.name}
+        return {"ok": True, "file": local_path, "name": clip.name}
     except HTTPException:
         raise
     except Exception as e:
@@ -388,13 +373,8 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
 
 @app.delete("/api/content-files")
 async def delete_content_file(path: str, user: dict = Depends(get_current_user)):
-    if SUPABASE_KEY:
-        try:
-            delete_storage_file(path)
-            log_content(user["id"], "Deleted file", "file", "manual", "deleted", file_path=path)
-            return {"ok": True}
-        except Exception as e:
-            raise HTTPException(500, f"Delete error: {e}")
+    if path.startswith("http"):
+        raise HTTPException(400, "Cannot delete remote files from here")
 
     file_path = Path(__file__).parent / path
     storage_dir = Path(__file__).parent / "storage"
