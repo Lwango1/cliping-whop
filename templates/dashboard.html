@@ -707,7 +707,7 @@
                     res.innerHTML = `<span style="color:#f87171">Erreur: ${data.detail || 'inconnue'}</span>`;
                 }
             } catch(e) {
-                res.innerHTML = '<span style="color:#f87171">Erreur de connexion</span>';
+                res.innerHTML = `<span style="color:#f87171">Erreur de connexion: ${e.message || 'inconnue'}</span>`;
             }
         }
 
