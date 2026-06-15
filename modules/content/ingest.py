@@ -99,105 +99,93 @@ class ContentIngestor:
             return []
 
     @staticmethod
-    def get_youtube_cookies(target_url: str = "") -> Optional[str]:
-        cookie_path = str(RAW_DIR / "yt_cookies.txt")
-        if Path(cookie_path).exists() and time.time() - Path(cookie_path).stat().st_mtime < 1800:
-            return cookie_path
+    def download_youtube_replay(query: str, max_duration: int = 300, output_dir: Optional[Path] = None):
+        output_dir = output_dir or RAW_DIR
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        is_url = query.startswith("http://") or query.startswith("https://")
+        if not is_url:
+            return "Only direct YouTube URLs are supported"
+
         try:
             from playwright.sync_api import sync_playwright
+            import requests
+
+            suffix = int(time.time())
+            output_path = output_dir / f"clip_{suffix}.mp4"
+
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
                 ctx = browser.new_context(
                     user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
                 )
                 page = ctx.new_page()
-                url_to_visit = target_url if target_url.startswith("http") else "https://www.youtube.com"
-                page.goto(url_to_visit, wait_until="domcontentloaded", timeout=45000)
-                page.wait_for_timeout(8000)
+                page.goto(query, wait_until="domcontentloaded", timeout=60000)
+                page.wait_for_timeout(5000)
+
+                player_data = page.evaluate("""() => {
+                    try { return ytInitialPlayerResponse; } catch(e) { return null; }
+                }""")
                 cookies = ctx.cookies()
                 browser.close()
-            with open(cookie_path, "w", encoding="utf-8") as f:
-                f.write("# Netscape HTTP Cookie File\n")
-                for c in cookies:
-                    domain = (c.get("domain", "") or "").lstrip(".")
-                    if domain and domain.startswith("."):
-                        domain = domain[1:]
-                    flag = "TRUE" if c.get("domain", "").startswith(".") else "FALSE"
-                    secure = "TRUE" if c.get("secure", False) else "FALSE"
-                    f.write(f"{domain}\t{flag}\t{c.get('path','/')}\t{secure}\t{int(c.get('expires',0))}\t{c.get('name','')}\t{c.get('value','')}\n")
-            print(f"[Ingest] YouTube cookies saved ({len(cookies)} cookies, via {url_to_visit})")
-            return cookie_path
-        except Exception as e:
-            print(f"[Ingest] Cookie fetch failed: {e}")
-            return None
 
-    @staticmethod
-    def download_youtube_replay(query: str, max_duration: int = 300, output_dir: Optional[Path] = None):
-        output_dir = output_dir or RAW_DIR
-        output_dir.mkdir(parents=True, exist_ok=True)
+            if not player_data:
+                return "No player data found on page"
 
-        is_url = query.startswith("http://") or query.startswith("https://")
+            streaming = player_data.get("streamingData")
+            if not streaming:
+                return "No streaming data in player response"
 
-        try:
-            import yt_dlp
-            from utils import get_ffmpeg_path
+            formats = streaming.get("formats") or []
+            adaptive = streaming.get("adaptiveFormats") or []
 
-            suffix = int(time.time())
-            output_template = str(output_dir / f"clip_{suffix}.%(ext)s")
+            # Find best muxed format (has both video+audio) with direct URL
+            chosen = None
+            for fmt in formats:
+                if fmt.get("url") and fmt.get("height", 0) <= 720:
+                    if not chosen or fmt.get("height", 0) > chosen.get("height", 0):
+                        chosen = fmt
 
-            ydl_opts = {
-                "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-                "outtmpl": output_template,
-                "noplaylist": True,
-                "quiet": True,
-                "no_warnings": True,
-                "ffmpeg_location": get_ffmpeg_path(),
-                "merge_output_format": "mp4",
-                "http_headers": {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "en-us,en;q=0.5",
-                    "Sec-Fetch-Mode": "navigate",
-                },
-                "geo_bypass": True,
-                "sleep_interval": 3,
-                "sleep_interval_requests": 1,
-                "throttled_rate": "500K",
-            }
+            if not chosen and adaptive:
+                # Try adaptive: find best video + best audio, combine via ffmpeg
+                videos = [f for f in adaptive if f.get("mimeType", "").startswith("video/") and f.get("url") and f.get("height", 0) <= 720]
+                audios = [f for f in adaptive if f.get("mimeType", "").startswith("audio/") and f.get("url")]
+                best_v = max(videos, key=lambda f: f.get("height", 0)) if videos else None
+                best_a = max(audios, key=lambda f: f.get("bitrate", 0)) if audios else None
+                if best_v and best_a:
+                    from utils import get_ffmpeg_path
+                    import subprocess
+                    ffmpeg = get_ffmpeg_path()
+                    vid_path = output_dir / f"clip_{suffix}_v.mp4"
+                    aud_path = output_dir / f"clip_{suffix}_a.m4a"
+                    vresp = requests.get(best_v["url"], cookies={c["name"]: c["value"] for c in cookies}, timeout=120)
+                    with open(vid_path, "wb") as f:
+                        f.write(vresp.content)
+                    aresp = requests.get(best_a["url"], cookies={c["name"]: c["value"] for c in cookies}, timeout=120)
+                    with open(aud_path, "wb") as f:
+                        f.write(aresp.content)
+                    subprocess.run([ffmpeg, "-y", "-i", str(vid_path), "-i", str(aud_path), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
+                    vid_path.unlink(missing_ok=True)
+                    aud_path.unlink(missing_ok=True)
+                    if output_path.exists() and output_path.stat().st_size > 100000:
+                        print(f"[Ingest] Downloaded (adaptive): {output_path.name}")
+                        return output_path
+                    output_path.unlink(missing_ok=True)
+                    return "Failed to mux adaptive formats"
 
-            cookie_file = ContentIngestor.get_youtube_cookies(query if is_url else "")
-            if cookie_file:
-                ydl_opts["cookiefile"] = cookie_file
+            if not chosen:
+                return "No downloadable format found"
 
-            if is_url:
-                url = query
-            else:
-                ydl_opts["match_filter"] = yt_dlp.utils.match_filter_func(f"duration < {max_duration}")
-                url = f"ytsearch1:{query} World Cup 2026 highlights"
+            # Download muxed format
+            resp = requests.get(chosen["url"], cookies={c["name"]: c["value"] for c in cookies}, timeout=300)
+            with open(output_path, "wb") as f:
+                f.write(resp.content)
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                if not info:
-                    print("[Ingest] yt-dlp returned no info")
-                    return None
+            if output_path.exists() and output_path.stat().st_size > 100000:
+                print(f"[Ingest] Downloaded: {output_path.name}")
+                return output_path
 
-                # Find the downloaded file
-                for f in output_dir.glob(f"clip_{suffix}.*"):
-                    if f.suffix.lower() in (".mp4", ".webm", ".mkv", ".m4a") and f.stat().st_size > 100000:
-                        print(f"[Ingest] Downloaded: {f.name}")
-                        return f
-
-                # Fallback: most recent file in output_dir
-                recent = sorted(output_dir.glob("*.*"), key=lambda x: x.stat().st_mtime, reverse=True)
-                for f in recent:
-                    if f.suffix.lower() in (".mp4", ".webm", ".mkv", ".m4a") and f.stat().st_size > 100000:
-                        age = time.time() - f.stat().st_mtime
-                        if age < 60:
-                            print(f"[Ingest] Downloaded (recent): {f.name}")
-                            return f
-
-                print(f"[Ingest] File not found after download (suffix={suffix})")
-                return None
+            return "Downloaded file too small"
 
         except Exception as e:
             import traceback
