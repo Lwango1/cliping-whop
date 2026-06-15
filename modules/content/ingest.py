@@ -124,11 +124,18 @@ class ContentIngestor:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(
                     headless=True,
-                    args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"]
+                    args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox", "--disable-blink-features=AutomationControlled"]
                 )
                 ctx = await browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                    viewport={"width": 1920, "height": 1080},
+                    locale="en-US",
                 )
+                await ctx.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+                    Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
+                    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+                """)
                 page = await ctx.new_page()
                 await page.goto(query, wait_until="domcontentloaded", timeout=60000)
                 await page.wait_for_timeout(8000)
@@ -141,9 +148,14 @@ class ContentIngestor:
             if not player_data:
                 return "No player data found on page"
 
+            playability = player_data.get("playabilityStatus", {})
+            if playability.get("status") != "OK":
+                reason = playability.get("reason", playability.get("status", "unknown"))
+                return f"Video not playable: {reason}"
+
             streaming = player_data.get("streamingData")
             if not streaming:
-                return "No streaming data in player response"
+                return f"No streaming data (playability: {playability.get('status', '?')} - {playability.get('reason', 'no reason')})"
 
             formats = streaming.get("formats") or []
             adaptive = streaming.get("adaptiveFormats") or []
