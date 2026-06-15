@@ -49,7 +49,7 @@ class UserConfig(BaseModel):
     facebook: FacebookConfig = FacebookConfig()
     posts_per_day: int = 3
     preferred_hours: list[int] = [10, 14, 18, 21]
-    campaign_keywords: list[str] = ["betway", "world cup", "sports betting", "canada"]
+    campaign_keywords: list[str] = ["world cup", "sports", "canada", "football"]
     content_sources: list[str] = ["youtube_replays", "sports_api"]
     locale: str = "en-CA"
 
