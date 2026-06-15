@@ -109,13 +109,12 @@ class ContentIngestor:
 
         try:
             from playwright.sync_api import sync_playwright
-            import requests
 
             suffix = int(time.time())
             output_path = output_dir / f"clip_{suffix}.mp4"
 
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
+                browser = p.chromium.launch(headless=True, args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"])
                 ctx = browser.new_context(
                     user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
                 )
