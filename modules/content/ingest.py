@@ -111,126 +111,72 @@ class ContentIngestor:
         match = re.search(r"(?:v=|/v/|youtu\.be/|/shorts/)([a-zA-Z0-9_-]{11})", query)
         if not match:
             return "Could not extract video ID from URL"
-        video_id = match.group(1)
 
         import asyncio
         suffix = int(time.time())
         output_path = output_dir / f"clip_{suffix}.mp4"
 
         try:
-            # Get YouTube cookies first (vital for server IPs)
-            sess = requests.Session()
-            sess.headers.update({
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-                "Accept-Language": "en-US,en;q=0.9",
-            })
-            await asyncio.to_thread(sess.get, "https://www.youtube.com", timeout=15)
+            from utils import get_ffmpeg_path
+            import yt_dlp
 
-            # Call YouTube player API (TVHTML5 client is less restricted)
-            api_key = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
-            body = {
-                "videoId": video_id,
-                "context": {
-                    "client": {
-                        "clientName": "TVHTML5",
-                        "clientVersion": "7.20250101",
-                        "osName": "Linux",
-                        "osVersion": "6.1",
-                        "platform": "TV",
+            ffmpeg_loc = get_ffmpeg_path()
+            ydl_opts = {
+                "format": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+                "outtmpl": str(output_path),
+                "noplaylist": True,
+                "quiet": True,
+                "no_warnings": True,
+                "ffmpeg_location": ffmpeg_loc,
+                "merge_output_format": "mp4",
+                "geo_bypass": True,
+                "geo_bypass_country": "US",
+                "throttled_rate": "500K",
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": ["ios", "web_embedded", "android_embedded"],
+                        "skip": ["webpage", "dash", "hls"],
                     }
-                }
-            }
-            resp = await asyncio.to_thread(
-                sess.post,
-                f"https://www.youtube.com/youtubei/v1/player?key={api_key}",
-                json=body, timeout=30
-            )
-            if resp.status_code != 200:
-                detail = resp.text[:300] if resp.text else "no body"
-                return f"YouTube API {resp.status_code}: {detail}"
-
-            data = resp.json()
-            playability = data.get("playabilityStatus", {})
-            if playability.get("status") != "OK":
-                reason = playability.get("reason", playability.get("status", "unknown"))
-                return f"Video not playable: {reason}"
-
-            streaming = data.get("streamingData")
-            if not streaming:
-                return f"No streaming data ({playability.get('status','?')})"
-
-            formats = streaming.get("formats") or []
-            adaptive = streaming.get("adaptiveFormats") or []
-
-            from urllib.parse import parse_qs
-            def get_url(fmt):
-                u = fmt.get("url")
-                if u:
-                    return u
-                c = fmt.get("signatureCipher") or fmt.get("cipher", "")
-                if c:
-                    return parse_qs(c).get("url", [None])[0]
-                return None
-
-            dl_headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Referer": "https://www.youtube.com/",
+                },
+                "http_headers": {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Sec-Fetch-Mode": "navigate",
+                },
             }
 
-            chosen = None
-            for f in formats:
-                u = get_url(f)
-                if u and f.get("height", 0) <= 720:
-                    if not chosen or f["height"] > chosen["height"]:
-                        f["_url"] = u
-                        chosen = f
+            def _run():
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    return ydl.extract_info(query, download=True)
 
-            if not chosen and adaptive:
-                vids = [f for f in adaptive if get_url(f) and f.get("mimeType","").startswith("video/") and f.get("height",0) <= 720]
-                for f in vids:
-                    f["_url"] = get_url(f)
-                auds = [f for f in adaptive if get_url(f) and f.get("mimeType","").startswith("audio/")]
-                for f in auds:
-                    f["_url"] = get_url(f)
-                bv = max(vids, key=lambda f: f["height"]) if vids else None
-                ba = max(auds, key=lambda f: f.get("bitrate",0)) if auds else None
-                if bv and ba:
-                    from utils import get_ffmpeg_path
-                    ff = get_ffmpeg_path()
-                    vp = output_dir / f"clip_{suffix}_v.mp4"
-                    ap = output_dir / f"clip_{suffix}_a.m4a"
-                    vr = await asyncio.to_thread(sess.get, bv["_url"], headers=dl_headers, timeout=120)
-                    with open(vp, "wb") as f:
-                        f.write(vr.content)
-                    ar = await asyncio.to_thread(sess.get, ba["_url"], headers=dl_headers, timeout=120)
-                    with open(ap, "wb") as f:
-                        f.write(ar.content)
-                    import subprocess
-                    await asyncio.to_thread(subprocess.run, [ff, "-y", "-i", str(vp), "-i", str(ap), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
-                    vp.unlink(missing_ok=True)
-                    ap.unlink(missing_ok=True)
-                    if output_path.exists() and output_path.stat().st_size > 100000:
-                        print(f"[Ingest] Downloaded (adaptive): {output_path.name}")
-                        return output_path
-                    output_path.unlink(missing_ok=True)
-                    return "Failed to mux adaptive formats"
-
-            if not chosen:
-                return "No downloadable format found"
-
-            resp = await asyncio.to_thread(sess.get, chosen["_url"], headers=dl_headers, timeout=300)
-            with open(output_path, "wb") as f:
-                f.write(resp.content)
+            result = await asyncio.to_thread(_run)
+            if not result:
+                return "yt-dlp returned no data"
 
             if output_path.exists() and output_path.stat().st_size > 100000:
                 print(f"[Ingest] Downloaded: {output_path.name}")
                 return output_path
-            return "Downloaded file too small"
+
+            # Fallback: find any downloaded file
+            out = output_dir / f"clip_{suffix}.mp4"
+            if out.exists() and out.stat().st_size > 100000:
+                return out
+            for f in sorted(output_dir.glob(f"clip_{suffix}.*"), key=lambda x: x.stat().st_size, reverse=True):
+                if f.stat().st_size > 100000:
+                    print(f"[Ingest] Downloaded: {f.name}")
+                    return f
+
+            return "Downloaded file not found"
 
         except Exception as e:
             import traceback
-            print(f"[Ingest] Download failed: {e}\n{traceback.format_exc()}")
-            return f"Download failed: {e}"
+            tb = traceback.format_exc()
+            print(f"[Ingest] Download failed: {e}\n{tb}")
+            err = str(e)
+            if len(err) > 300:
+                err = err[:300]
+            return f"Download failed: {err}"
 
     @staticmethod
     def cache_event_data(events: list[dict], cache_file: str = "events_cache.json"):
