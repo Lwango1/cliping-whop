@@ -360,12 +360,26 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
             if f != clip:
                 f.unlink(missing_ok=True)
 
-        return FileResponse(str(clip), media_type="video/mp4", filename=clip.name, headers={"Content-Disposition": f"attachment; filename=\"{clip.name}\""})
+        return {"ok": True, "file": str(clip.name), "path": str(clip.relative_to(Path(__file__).parent).as_posix())}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(500, f"Generation error: {e}")
 
+
+@app.get("/api/download")
+async def download_file(path: str, token: str = ""):
+    user = None
+    if token:
+        data = get_token_data(token)
+        if data and data["expires"] >= time.time():
+            user = get_user_by_id(data["user_id"])
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    file_path = Path(__file__).parent / path
+    if not file_path.exists() or not str(file_path.resolve()).startswith(str(Path(__file__).parent.resolve())):
+        raise HTTPException(404, "File not found")
+    return FileResponse(str(file_path), media_type="video/mp4", filename=file_path.name, headers={"Content-Disposition": f"attachment; filename=\"{file_path.name}\""})
 
 @app.delete("/api/content-files")
 async def delete_content_file(path: str, user: dict = Depends(get_current_user)):

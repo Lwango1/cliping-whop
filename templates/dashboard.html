@@ -698,17 +698,14 @@
                     res.innerHTML = `<span style="color:#f87171">${msg}</span>`;
                     return;
                 }
-                const blob = await r.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = r.headers.get('content-disposition')?.split('filename=')[1]?.replace(/"/g,'') || 'clip.mp4';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                res.innerHTML = '<span style="color:#4ade80">✅ Telechargement termine !</span>';
-                loadContent();
+                const data = await r.json();
+                if (data.ok) {
+                    const downloadUrl = `/api/download?path=${encodeURIComponent(data.path)}&token=${TOKEN}`;
+                    res.innerHTML = `<span style="color:#4ade80">✅ Clip cree !</span> <a href="${downloadUrl}" download="${data.file}" style="color:#ffd700;font-weight:600;display:inline-block;margin-top:8px;padding:10px 20px;background:#1a2340;border:1px solid #ffd700;border-radius:8px;text-decoration:none">📥 Telecharger la video</a>`;
+                    loadContent();
+                } else {
+                    res.innerHTML = `<span style="color:#f87171">Erreur: ${data.detail || 'inconnue'}</span>`;
+                }
             } catch(e) {
                 res.innerHTML = '<span style="color:#f87171">Erreur de connexion</span>';
             }
