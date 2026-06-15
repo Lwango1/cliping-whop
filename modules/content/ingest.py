@@ -132,31 +132,32 @@ class ContentIngestor:
 
             # YouTube internal web API (same endpoint the website uses)
             import asyncio
-            api_key = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"
+            api_key = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
             api_url = f"https://www.youtube.com/youtubei/v1/player?key={api_key}"
             headers = {
                 "Content-Type": "application/json",
-                "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 14) gzip",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
                 "Origin": "https://www.youtube.com",
                 "Referer": f"https://www.youtube.com/watch?v={video_id}",
+                "Accept-Language": "en-US,en;q=0.9",
             }
             body = {
                 "videoId": video_id,
                 "context": {
                     "client": {
-                        "clientName": "ANDROID",
-                        "clientVersion": "19.09.37",
-                        "androidSdkVersion": 34,
-                        "osName": "Android",
-                        "osVersion": "14",
-                        "platform": "MOBILE",
+                        "clientName": "TVHTML5",
+                        "clientVersion": "7.20250101",
+                        "osName": "Linux",
+                        "osVersion": "6.1",
+                        "platform": "TV",
                     }
                 }
             }
 
             resp = await asyncio.to_thread(requests.post, api_url, json=body, headers=headers, timeout=30)
             if resp.status_code != 200:
-                return f"YouTube API returned status {resp.status_code}"
+                detail = resp.text[:500] if resp.text else "no response body"
+                return f"YouTube API returned status {resp.status_code}: {detail}"
 
             player_data = resp.json()
 
