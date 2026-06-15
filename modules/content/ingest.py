@@ -99,9 +99,9 @@ class ContentIngestor:
             return []
 
     @staticmethod
-    def get_youtube_cookies() -> Optional[str]:
+    def get_youtube_cookies(target_url: str = "") -> Optional[str]:
         cookie_path = str(RAW_DIR / "yt_cookies.txt")
-        if Path(cookie_path).exists() and time.time() - Path(cookie_path).stat().st_mtime < 3600:
+        if Path(cookie_path).exists() and time.time() - Path(cookie_path).stat().st_mtime < 1800:
             return cookie_path
         try:
             from playwright.sync_api import sync_playwright
@@ -111,17 +111,21 @@ class ContentIngestor:
                     user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
                 )
                 page = ctx.new_page()
-                page.goto("https://www.youtube.com", wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_timeout(5000)
+                url_to_visit = target_url if target_url.startswith("http") else "https://www.youtube.com"
+                page.goto(url_to_visit, wait_until="domcontentloaded", timeout=45000)
+                page.wait_for_timeout(8000)
                 cookies = ctx.cookies()
                 browser.close()
             with open(cookie_path, "w", encoding="utf-8") as f:
                 f.write("# Netscape HTTP Cookie File\n")
                 for c in cookies:
                     domain = (c.get("domain", "") or "").lstrip(".")
+                    if domain and domain.startswith("."):
+                        domain = domain[1:]
                     flag = "TRUE" if c.get("domain", "").startswith(".") else "FALSE"
-                    f.write(f"{domain}\t{flag}\t{c.get('path','/')}\t{'TRUE' if c.get('secure',False) else 'FALSE'}\t{int(c.get('expires',0))}\t{c.get('name','')}\t{c.get('value','')}\n")
-            print(f"[Ingest] YouTube cookies saved ({len(cookies)} cookies)")
+                    secure = "TRUE" if c.get("secure", False) else "FALSE"
+                    f.write(f"{domain}\t{flag}\t{c.get('path','/')}\t{secure}\t{int(c.get('expires',0))}\t{c.get('name','')}\t{c.get('value','')}\n")
+            print(f"[Ingest] YouTube cookies saved ({len(cookies)} cookies, via {url_to_visit})")
             return cookie_path
         except Exception as e:
             print(f"[Ingest] Cookie fetch failed: {e}")
@@ -161,7 +165,7 @@ class ContentIngestor:
                 "throttled_rate": "500K",
             }
 
-            cookie_file = ContentIngestor.get_youtube_cookies()
+            cookie_file = ContentIngestor.get_youtube_cookies(query if is_url else "")
             if cookie_file:
                 ydl_opts["cookiefile"] = cookie_file
 
