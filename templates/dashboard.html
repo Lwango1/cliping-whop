@@ -698,14 +698,17 @@
                     res.innerHTML = `<span style="color:#f87171">${msg}</span>`;
                     return;
                 }
-                const data = await r.json();
-                if (data.ok) {
-                    const videoUrl = data.file && !data.file.startsWith('http') ? '/' + data.file : data.file;
-                res.innerHTML = `<span style="color:#4ade80">Clip cree !</span> <a href="${videoUrl}" target="_blank" style="color:#ffd700">Voir la video</a>`;
-                    loadContent();
-                } else {
-                    res.innerHTML = `<span style="color:#f87171">Erreur: ${data.detail || 'inconnue'}</span>`;
-                }
+                const blob = await r.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = r.headers.get('content-disposition')?.split('filename=')[1]?.replace(/"/g,'') || 'clip.mp4';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                res.innerHTML = '<span style="color:#4ade80">✅ Telechargement termine !</span>';
+                loadContent();
             } catch(e) {
                 res.innerHTML = '<span style="color:#f87171">Erreur de connexion</span>';
             }

@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Depends, status, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -351,11 +351,8 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
 
         log_content(user["id"], f"Custom clip from URL", "video", "manual", "created", file_path=clip.name)
 
-        local_path = str(clip.relative_to(Path(__file__).parent).as_posix())
-
         for f in list(PROCESSED_DIR.glob("_pro_*.mp4")):
-            if f != clip:
-                f.unlink(missing_ok=True)
+            f.unlink(missing_ok=True)
         for f in list(PROCESSED_DIR.glob("custom_*.mp4")):
             if f != clip:
                 f.unlink(missing_ok=True)
@@ -363,18 +360,7 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
             if f != clip:
                 f.unlink(missing_ok=True)
 
-        if SUPABASE_KEY:
-            try:
-                storage_path = f"user_{user['id']}/{clip.name}"
-                uploaded = upload_file(clip, storage_path)
-                if uploaded:
-                    file_url = get_file_url(storage_path)
-                    if file_url:
-                        return {"ok": True, "file": file_url, "name": clip.name}
-            except Exception as e:
-                print(f"[API] Supabase upload error (using local path): {e}")
-
-        return {"ok": True, "file": local_path, "name": clip.name}
+        return FileResponse(str(clip), media_type="video/mp4", filename=clip.name, headers={"Content-Disposition": f"attachment; filename=\"{clip.name}\""})
     except HTTPException:
         raise
     except Exception as e:
