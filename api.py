@@ -313,7 +313,7 @@ class GenerateFromURLRequest(BaseModel):
 @app.post("/api/generate-from-url")
 async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(get_current_user)):
     try:
-        downloaded = ContentIngestor.download_youtube_replay(
+        downloaded = await ContentIngestor.download_youtube_replay(
             req.url,
             max_duration=300,
             output_dir=RAW_DIR,
