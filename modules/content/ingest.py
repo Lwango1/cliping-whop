@@ -99,6 +99,35 @@ class ContentIngestor:
             return []
 
     @staticmethod
+    def get_youtube_cookies() -> Optional[str]:
+        cookie_path = str(RAW_DIR / "yt_cookies.txt")
+        if Path(cookie_path).exists() and time.time() - Path(cookie_path).stat().st_mtime < 3600:
+            return cookie_path
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                ctx = browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+                )
+                page = ctx.new_page()
+                page.goto("https://www.youtube.com", wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(5000)
+                cookies = ctx.cookies()
+                browser.close()
+            with open(cookie_path, "w", encoding="utf-8") as f:
+                f.write("# Netscape HTTP Cookie File\n")
+                for c in cookies:
+                    domain = (c.get("domain", "") or "").lstrip(".")
+                    flag = "TRUE" if c.get("domain", "").startswith(".") else "FALSE"
+                    f.write(f"{domain}\t{flag}\t{c.get('path','/')}\t{'TRUE' if c.get('secure',False) else 'FALSE'}\t{int(c.get('expires',0))}\t{c.get('name','')}\t{c.get('value','')}\n")
+            print(f"[Ingest] YouTube cookies saved ({len(cookies)} cookies)")
+            return cookie_path
+        except Exception as e:
+            print(f"[Ingest] Cookie fetch failed: {e}")
+            return None
+
+    @staticmethod
     def download_youtube_replay(query: str, max_duration: int = 300, output_dir: Optional[Path] = None):
         output_dir = output_dir or RAW_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -120,7 +149,6 @@ class ContentIngestor:
                 "no_warnings": True,
                 "ffmpeg_location": get_ffmpeg_path(),
                 "merge_output_format": "mp4",
-                "extractor_args": {"youtube": {"player_client": ["android_embedded", "web_embedded"], "skip": ["webpage", "dash", "hls"]}},
                 "http_headers": {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -132,6 +160,10 @@ class ContentIngestor:
                 "sleep_interval_requests": 1,
                 "throttled_rate": "500K",
             }
+
+            cookie_file = ContentIngestor.get_youtube_cookies()
+            if cookie_file:
+                ydl_opts["cookiefile"] = cookie_file
 
             if is_url:
                 url = query
