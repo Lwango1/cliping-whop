@@ -120,13 +120,17 @@ class ContentIngestor:
                 "no_warnings": True,
                 "ffmpeg_location": get_ffmpeg_path(),
                 "merge_output_format": "mp4",
-                "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+                "extractor_args": {"youtube": {"player_client": ["android_embedded", "web_embedded"], "skip": ["webpage", "dash", "hls"]}},
                 "http_headers": {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "Accept-Language": "en-us,en;q=0.5",
                     "Sec-Fetch-Mode": "navigate",
                 },
+                "geo_bypass": True,
+                "sleep_interval": 3,
+                "sleep_interval_requests": 1,
+                "throttled_rate": "500K",
             }
 
             if is_url:
