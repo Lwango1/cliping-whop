@@ -347,3 +347,23 @@ class VideoGenerator:
                 shutil.move(str(scored), str(current))
 
         return current if current.exists() else None
+
+    @staticmethod
+    def add_subtitles(input_video: Path, text: str, output_name: str = "subtitled", duration: float = 60) -> Optional[Path]:
+        output_path = PROCESSED_DIR / f"{output_name}.mp4"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        safe_text = text.replace("'", "\\'").replace(":", "\\:").replace(",", "\\,")
+        try:
+            run_ffmpeg([
+                "-y", "-i", str(input_video),
+                "-vf", f"drawtext=text='{safe_text}':fontsize=28:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=8:x=(w-text_w)/2:y=h-text_h-40:enable='between(t,2,{duration-1})'",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                "-c:a", "copy",
+                "-movflags", "+faststart",
+                str(output_path),
+            ], timeout=180)
+            print(f"[VideoGen] Subtitles added: {output_path.name}")
+            return output_path
+        except Exception as e:
+            print(f"[VideoGen] Subtitle error: {e}")
+            return None

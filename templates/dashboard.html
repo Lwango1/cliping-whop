@@ -100,29 +100,17 @@
 
     <div class="bottom-nav">
         <div class="nav-item active" onclick="showPage('overview')"><span>📊</span><span>Vue</span></div>
-        <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
-        <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
-        <div class="nav-item" onclick="showPage('automation')"><span>🤖</span><span>Auto</span></div>
         <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
-        <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Camp.</span></div>
-        <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Logs</span></div>
-        <div class="nav-item" onclick="showPage('subscription')"><span>💎</span><span>Abonnement</span></div>
-        <div class="nav-item" onclick="showPage('referral')"><span>🤝</span><span>Parrainage</span></div>
-        <div class="nav-item d-none" id="installBtnMobile" onclick="triggerInstall()"><span>📲</span><span>App</span></div>
+        <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
+        <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
     </div>
 
     <div class="sidebar">
         <div class="logo"><span>⚽</span><span>Clipping Whop</span></div>
         <div class="nav-item active" onclick="showPage('overview')"><span>📊</span><span>Vue d'ensemble</span></div>
-        <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
-        <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
-        <div class="nav-item" onclick="showPage('automation')"><span>🤖</span><span>Automatisation</span></div>
         <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
-        <div class="nav-item" onclick="showPage('campaigns')"><span>📋</span><span>Campagnes</span></div>
-        <div class="nav-item" onclick="showPage('logs')"><span>📜</span><span>Historique</span></div>
-        <div class="nav-item" onclick="showPage('subscription')"><span>💎</span><span>Abonnement</span></div>
-        <div class="nav-item" onclick="showPage('referral')"><span>🤝</span><span>Parrainage</span></div>
-        <div class="nav-item d-none" id="installBtnNav" onclick="triggerInstall()" style="cursor:pointer"><span>📲</span><span>Installer</span></div>
+        <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
+        <div class="nav-item" onclick="showPage('accounts')"><span>🔑</span><span>Comptes</span></div>
         <div style="flex:1"></div>
         <div class="user-badge">
             <span>👤</span>
@@ -544,13 +532,9 @@
             document.getElementById(`page-${name}`).classList.add('active');
             document.querySelector(`.nav-item[onclick="showPage('${name}')"]`).classList.add('active');
             if (name === 'overview') loadOverview();
-            if (name === 'campaigns') loadCampaigns();
-            if (name === 'logs') loadLogs();
             if (name === 'accounts') loadAccounts();
             if (name === 'content') loadContent();
-            if (name === 'automation') loadSchedulerStatus();
-            if (name === 'subscription') loadSubscriptionPage();
-            if (name === 'referral') loadReferralPage();
+            if (name === 'actions') document.getElementById('pipelineResult').innerHTML = '';
         }
 
         async function apiGet(url) {

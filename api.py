@@ -313,16 +313,11 @@ class GenerateFromURLRequest(BaseModel):
 @app.post("/api/generate-from-url")
 async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(get_current_user)):
     try:
-        import traceback, sys
-        with open("logs/api_debug.log", "a") as f:
-            f.write(f"[API] Downloading URL: {req.url}\n")
         downloaded = ContentIngestor.download_youtube_replay(
             req.url,
             max_duration=300,
             output_dir=RAW_DIR,
         )
-        with open("logs/api_debug.log", "a") as f:
-            f.write(f"[API] Download result: {downloaded}\n")
         if not downloaded:
             raise HTTPException(400, "Failed to download video from URL")
 
@@ -338,21 +333,36 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
             add_ken_burns=True,
             add_color_grade=True,
             add_scoreboard=bool(req.team_home),
-            add_intro=True,
-            add_outro=True,
+            add_intro=False,
+            add_outro=False,
         )
         if not clip:
             raise HTTPException(500, "Failed to create clip")
 
-        vo = AudioGenerator.generate_voiceover(output_name=f"vo_custom_{int(time.time())}")
-        if vo:
-            mixed = AudioGenerator.mix_audio_with_video(clip, vo, f"final_{int(time.time())}")
+        vo_path, vo_text = AudioGenerator.generate_voiceover(output_name=f"vo_custom_{int(time.time())}")
+        if vo_path and req.duration > 10:
+            mixed = AudioGenerator.mix_audio_with_video(clip, vo_path, f"final_{int(time.time())}")
             if mixed:
                 clip = mixed
+
+        subtitled = VideoGenerator.add_subtitles(clip, vo_text, f"sub_{int(time.time())}", duration=req.duration)
+        if subtitled:
+            clip = subtitled
 
         log_content(user["id"], f"Custom clip from URL", "video", "manual", "created", file_path=clip.name)
 
         local_path = str(clip.relative_to(Path(__file__).parent).as_posix())
+
+        for f in list(PROCESSED_DIR.glob("_pro_*.mp4")):
+            if f != clip:
+                f.unlink(missing_ok=True)
+        for f in list(PROCESSED_DIR.glob("custom_*.mp4")):
+            if f != clip:
+                f.unlink(missing_ok=True)
+        for f in list(PROCESSED_DIR.glob("final_*.mp4")):
+            if f != clip:
+                f.unlink(missing_ok=True)
+
         if SUPABASE_KEY:
             try:
                 storage_path = f"user_{user['id']}/{clip.name}"

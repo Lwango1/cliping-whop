@@ -21,7 +21,7 @@ CAPTION_TEMPLATES = [
 class AudioGenerator:
 
     @staticmethod
-    def generate_voiceover(text: Optional[str] = None, output_name: str = "voiceover", voice: str = "en-CA-LiamNeural") -> Optional[Path]:
+    def generate_voiceover(text: Optional[str] = None, output_name: str = "voiceover", voice: str = "en-CA-LiamNeural") -> tuple:
         if not text:
             text = random.choice(CAPTION_TEMPLATES).format(player="Canada")
 
@@ -51,15 +51,16 @@ class AudioGenerator:
                 asyncio.run(_run())
 
             print(f"[AudioGen] Voiceover created: {output_path.name}")
-            return output_path
+            return output_path, text
 
         except ImportError:
             print("[AudioGen] edge-tts not installed. Falling back to ffmpeg silence generation.")
-            return AudioGenerator._generate_silence(output_path)
+            silence = AudioGenerator._generate_silence(output_path)
+            return (silence, text) if silence else (None, text)
 
         except Exception as e:
             print(f"[AudioGen] TTS error: {e}")
-            return None
+            return None, text
 
     @staticmethod
     def _generate_silence(output_path: Path, duration: int = 15) -> Optional[Path]:
@@ -86,8 +87,9 @@ class AudioGenerator:
                 "-i", str(audio_path),
                 "-c:v", "copy",
                 "-c:a", "aac",
+                "-filter_complex", "[1:a]aloop=loop=-1:size=1,atrim=duration=300[a];[0:a][a]amix=inputs=2:duration=first[d]",
                 "-map", "0:v:0",
-                "-map", "1:a:0",
+                "-map", "[d]",
                 "-shortest",
                 str(output_path),
             ], timeout=60)
