@@ -99,6 +99,19 @@ class ContentIngestor:
             return []
 
     @staticmethod
+    def _get_format_url(fmt: dict) -> Optional[str]:
+        url = fmt.get("url")
+        if url:
+            return url
+        cipher = fmt.get("signatureCipher") or fmt.get("cipher", "")
+        if cipher:
+            import urllib.parse
+            parsed = urllib.parse.parse_qs(cipher)
+            if parsed.get("url"):
+                return parsed["url"][0]
+        return None
+
+    @staticmethod
     def download_youtube_replay(query: str, max_duration: int = 300, output_dir: Optional[Path] = None):
         output_dir = output_dir or RAW_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -125,7 +138,7 @@ class ContentIngestor:
                 player_data = page.evaluate("""() => {
                     try { return ytInitialPlayerResponse; } catch(e) { return null; }
                 }""")
-                cookies = ctx.cookies()
+                cookie_dict = {c["name"]: c["value"] for c in ctx.cookies()}
                 browser.close()
 
             if not player_data:
@@ -138,17 +151,34 @@ class ContentIngestor:
             formats = streaming.get("formats") or []
             adaptive = streaming.get("adaptiveFormats") or []
 
-            # Find best muxed format (has both video+audio) with direct URL
+            dl_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                "Referer": "https://www.youtube.com/",
+            }
+
+            # Find best muxed format (has both video+audio) with resolvable URL
             chosen = None
             for fmt in formats:
-                if fmt.get("url") and fmt.get("height", 0) <= 720:
+                url = ContentIngestor._get_format_url(fmt)
+                if url and fmt.get("height", 0) <= 720:
                     if not chosen or fmt.get("height", 0) > chosen.get("height", 0):
+                        fmt["_url"] = url
                         chosen = fmt
 
             if not chosen and adaptive:
                 # Try adaptive: find best video + best audio, combine via ffmpeg
-                videos = [f for f in adaptive if f.get("mimeType", "").startswith("video/") and f.get("url") and f.get("height", 0) <= 720]
-                audios = [f for f in adaptive if f.get("mimeType", "").startswith("audio/") and f.get("url")]
+                videos = []
+                for f in adaptive:
+                    url = ContentIngestor._get_format_url(f)
+                    if url and f.get("mimeType", "").startswith("video/") and f.get("height", 0) <= 720:
+                        f["_url"] = url
+                        videos.append(f)
+                audios = []
+                for f in adaptive:
+                    url = ContentIngestor._get_format_url(f)
+                    if url and f.get("mimeType", "").startswith("audio/"):
+                        f["_url"] = url
+                        audios.append(f)
                 best_v = max(videos, key=lambda f: f.get("height", 0)) if videos else None
                 best_a = max(audios, key=lambda f: f.get("bitrate", 0)) if audios else None
                 if best_v and best_a:
@@ -157,10 +187,10 @@ class ContentIngestor:
                     ffmpeg = get_ffmpeg_path()
                     vid_path = output_dir / f"clip_{suffix}_v.mp4"
                     aud_path = output_dir / f"clip_{suffix}_a.m4a"
-                    vresp = requests.get(best_v["url"], cookies={c["name"]: c["value"] for c in cookies}, timeout=120)
+                    vresp = requests.get(best_v["_url"], headers=dl_headers, cookies=cookie_dict, timeout=120)
                     with open(vid_path, "wb") as f:
                         f.write(vresp.content)
-                    aresp = requests.get(best_a["url"], cookies={c["name"]: c["value"] for c in cookies}, timeout=120)
+                    aresp = requests.get(best_a["_url"], headers=dl_headers, cookies=cookie_dict, timeout=120)
                     with open(aud_path, "wb") as f:
                         f.write(aresp.content)
                     subprocess.run([ffmpeg, "-y", "-i", str(vid_path), "-i", str(aud_path), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
@@ -176,7 +206,7 @@ class ContentIngestor:
                 return "No downloadable format found"
 
             # Download muxed format
-            resp = requests.get(chosen["url"], cookies={c["name"]: c["value"] for c in cookies}, timeout=300)
+            resp = requests.get(chosen["_url"], headers=dl_headers, cookies=cookie_dict, timeout=300)
             with open(output_path, "wb") as f:
                 f.write(resp.content)
 
