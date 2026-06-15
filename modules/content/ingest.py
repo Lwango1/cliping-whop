@@ -99,19 +99,6 @@ class ContentIngestor:
             return []
 
     @staticmethod
-    def _get_format_url(fmt: dict) -> Optional[str]:
-        url = fmt.get("url")
-        if url:
-            return url
-        cipher = fmt.get("signatureCipher") or fmt.get("cipher", "")
-        if cipher:
-            import urllib.parse
-            parsed = urllib.parse.parse_qs(cipher)
-            if parsed.get("url"):
-                return parsed["url"][0]
-        return None
-
-    @staticmethod
     async def download_youtube_replay(query: str, max_duration: int = 300, output_dir: Optional[Path] = None):
         output_dir = output_dir or RAW_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -126,49 +113,37 @@ class ContentIngestor:
             return "Could not extract video ID from URL"
         video_id = match.group(1)
 
+        import asyncio
+        from playwright.async_api import async_playwright
+        from urllib.parse import parse_qs
+
+        suffix = int(time.time())
+        output_path = output_dir / f"clip_{suffix}.mp4"
+
         try:
-            suffix = int(time.time())
-            output_path = output_dir / f"clip_{suffix}.mp4"
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"]
+                )
+                ctx = await browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+                )
+                page = await ctx.new_page()
+                await page.goto(query, wait_until="domcontentloaded", timeout=60000)
+                await page.wait_for_timeout(8000)
 
-            # YouTube internal web API (same endpoint the website uses)
-            import asyncio
-            api_key = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
-            api_url = f"https://www.youtube.com/youtubei/v1/player?key={api_key}"
-            headers = {
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-                "Origin": "https://www.youtube.com",
-                "Referer": f"https://www.youtube.com/watch?v={video_id}",
-                "Accept-Language": "en-US,en;q=0.9",
-            }
-            body = {
-                "videoId": video_id,
-                "context": {
-                    "client": {
-                        "clientName": "TVHTML5",
-                        "clientVersion": "7.20250101",
-                        "osName": "Linux",
-                        "osVersion": "6.1",
-                        "platform": "TV",
-                    }
-                }
-            }
+                player_data = await page.evaluate("""() => {
+                    try { return ytInitialPlayerResponse; } catch(e) { return null; }
+                }""")
+                await browser.close()
 
-            resp = await asyncio.to_thread(requests.post, api_url, json=body, headers=headers, timeout=30)
-            if resp.status_code != 200:
-                detail = resp.text[:500] if resp.text else "no response body"
-                return f"YouTube API returned status {resp.status_code}: {detail}"
-
-            player_data = resp.json()
-
-            playback = player_data.get("playabilityStatus", {})
-            if playback.get("status") != "OK":
-                reason = playback.get("reason", playback.get("status", "unknown"))
-                return f"Video not playable: {reason}"
+            if not player_data:
+                return "No player data found on page"
 
             streaming = player_data.get("streamingData")
             if not streaming:
-                return "No streaming data in API response"
+                return "No streaming data in player response"
 
             formats = streaming.get("formats") or []
             adaptive = streaming.get("adaptiveFormats") or []
@@ -178,45 +153,48 @@ class ContentIngestor:
                 "Referer": "https://www.youtube.com/",
             }
 
-            # Find best muxed format (has both video+audio) with resolvable URL
+            def get_url(fmt):
+                url = fmt.get("url")
+                if url:
+                    return url
+                cipher = fmt.get("signatureCipher") or fmt.get("cipher", "")
+                if cipher:
+                    qs = parse_qs(cipher)
+                    return qs.get("url", [None])[0]
+                return None
+
             chosen = None
             for fmt in formats:
-                url = ContentIngestor._get_format_url(fmt)
+                url = get_url(fmt)
                 if url and fmt.get("height", 0) <= 720:
                     if not chosen or fmt.get("height", 0) > chosen.get("height", 0):
                         fmt["_url"] = url
                         chosen = fmt
 
             if not chosen and adaptive:
-                videos = []
-                for f in adaptive:
-                    url = ContentIngestor._get_format_url(f)
-                    if url and f.get("mimeType", "").startswith("video/") and f.get("height", 0) <= 720:
-                        f["_url"] = url
-                        videos.append(f)
-                audios = []
-                for f in adaptive:
-                    url = ContentIngestor._get_format_url(f)
-                    if url and f.get("mimeType", "").startswith("audio/"):
-                        f["_url"] = url
-                        audios.append(f)
-                best_v = max(videos, key=lambda f: f.get("height", 0)) if videos else None
-                best_a = max(audios, key=lambda f: f.get("bitrate", 0)) if audios else None
-                if best_v and best_a:
+                videos = [f for f in adaptive if get_url(f) and f.get("mimeType", "").startswith("video/") and f.get("height", 0) <= 720]
+                for f in videos:
+                    f["_url"] = get_url(f)
+                audios = [f for f in adaptive if get_url(f) and f.get("mimeType", "").startswith("audio/")]
+                for f in audios:
+                    f["_url"] = get_url(f)
+                bv = max(videos, key=lambda f: f.get("height", 0)) if videos else None
+                ba = max(audios, key=lambda f: f.get("bitrate", 0)) if audios else None
+                if bv and ba:
                     from utils import get_ffmpeg_path
-                    import asyncio, subprocess
                     ffmpeg = get_ffmpeg_path()
-                    vid_path = output_dir / f"clip_{suffix}_v.mp4"
-                    aud_path = output_dir / f"clip_{suffix}_a.m4a"
-                    vresp = await asyncio.to_thread(requests.get, best_v["_url"], headers=dl_headers, timeout=120)
-                    with open(vid_path, "wb") as f:
-                        f.write(vresp.content)
-                    aresp = await asyncio.to_thread(requests.get, best_a["_url"], headers=dl_headers, timeout=120)
-                    with open(aud_path, "wb") as f:
-                        f.write(aresp.content)
-                    await asyncio.to_thread(subprocess.run, [ffmpeg, "-y", "-i", str(vid_path), "-i", str(aud_path), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
-                    vid_path.unlink(missing_ok=True)
-                    aud_path.unlink(missing_ok=True)
+                    vp = output_dir / f"clip_{suffix}_v.mp4"
+                    ap = output_dir / f"clip_{suffix}_a.m4a"
+                    vr = await asyncio.to_thread(requests.get, bv["_url"], headers=dl_headers, timeout=120)
+                    with open(vp, "wb") as f:
+                        f.write(vr.content)
+                    ar = await asyncio.to_thread(requests.get, ba["_url"], headers=dl_headers, timeout=120)
+                    with open(ap, "wb") as f:
+                        f.write(ar.content)
+                    import subprocess
+                    await asyncio.to_thread(subprocess.run, [ffmpeg, "-y", "-i", str(vp), "-i", str(ap), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
+                    vp.unlink(missing_ok=True)
+                    ap.unlink(missing_ok=True)
                     if output_path.exists() and output_path.stat().st_size > 100000:
                         print(f"[Ingest] Downloaded (adaptive): {output_path.name}")
                         return output_path
