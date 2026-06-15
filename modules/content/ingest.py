@@ -132,23 +132,24 @@ class ContentIngestor:
 
             # YouTube internal web API (same endpoint the website uses)
             import asyncio
-            api_key = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+            api_key = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"
             api_url = f"https://www.youtube.com/youtubei/v1/player?key={api_key}"
             headers = {
                 "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 14) gzip",
                 "Origin": "https://www.youtube.com",
                 "Referer": f"https://www.youtube.com/watch?v={video_id}",
-                "Accept-Language": "en-US,en;q=0.9",
             }
             body = {
                 "videoId": video_id,
                 "context": {
                     "client": {
-                        "clientName": "WEB",
-                        "clientVersion": "2.20250101.00.00",
-                        "hl": "en",
-                        "gl": "US",
+                        "clientName": "ANDROID",
+                        "clientVersion": "19.09.37",
+                        "androidSdkVersion": 34,
+                        "osName": "Android",
+                        "osVersion": "14",
+                        "platform": "MOBILE",
                     }
                 }
             }
