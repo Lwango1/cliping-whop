@@ -120,34 +120,52 @@ class ContentIngestor:
         if not is_url:
             return "Only direct YouTube URLs are supported"
 
+        import re
+        match = re.search(r"(?:v=|/v/|youtu\.be/|/shorts/)([a-zA-Z0-9_-]{11})", query)
+        if not match:
+            return "Could not extract video ID from URL"
+        video_id = match.group(1)
+
         try:
             suffix = int(time.time())
             output_path = output_dir / f"clip_{suffix}.mp4"
 
-            from playwright.async_api import async_playwright
+            # YouTube internal web API (same endpoint the website uses)
+            api_key = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+            api_url = f"https://www.youtube.com/youtubei/v1/player?key={api_key}"
+            headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                "Origin": "https://www.youtube.com",
+                "Referer": f"https://www.youtube.com/watch?v={video_id}",
+                "Accept-Language": "en-US,en;q=0.9",
+            }
+            body = {
+                "videoId": video_id,
+                "context": {
+                    "client": {
+                        "clientName": "WEB",
+                        "clientVersion": "2.20250101.00.00",
+                        "hl": "en",
+                        "gl": "US",
+                    }
+                }
+            }
 
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True, args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"])
-                ctx = await browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-                )
-                page = await ctx.new_page()
-                await page.goto(query, wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_timeout(5000)
+            resp = requests.post(api_url, json=body, headers=headers, timeout=30)
+            if resp.status_code != 200:
+                return f"YouTube API returned status {resp.status_code}"
 
-                player_data = await page.evaluate("""() => {
-                    try { return ytInitialPlayerResponse; } catch(e) { return null; }
-                }""")
-                raw_cookies = await ctx.cookies()
-                await browser.close()
-            cookie_dict = {c["name"]: c["value"] for c in raw_cookies}
+            player_data = resp.json()
 
-            if not player_data:
-                return "No player data found on page"
+            playback = player_data.get("playabilityStatus", {})
+            if playback.get("status") != "OK":
+                reason = playback.get("reason", playback.get("status", "unknown"))
+                return f"Video not playable: {reason}"
 
             streaming = player_data.get("streamingData")
             if not streaming:
-                return "No streaming data in player response"
+                return "No streaming data in API response"
 
             formats = streaming.get("formats") or []
             adaptive = streaming.get("adaptiveFormats") or []
@@ -167,7 +185,6 @@ class ContentIngestor:
                         chosen = fmt
 
             if not chosen and adaptive:
-                # Try adaptive: find best video + best audio, combine via ffmpeg
                 videos = []
                 for f in adaptive:
                     url = ContentIngestor._get_format_url(f)
@@ -188,10 +205,10 @@ class ContentIngestor:
                     ffmpeg = get_ffmpeg_path()
                     vid_path = output_dir / f"clip_{suffix}_v.mp4"
                     aud_path = output_dir / f"clip_{suffix}_a.m4a"
-                    vresp = requests.get(best_v["_url"], headers=dl_headers, cookies=cookie_dict, timeout=120)
+                    vresp = requests.get(best_v["_url"], headers=dl_headers, timeout=120)
                     with open(vid_path, "wb") as f:
                         f.write(vresp.content)
-                    aresp = requests.get(best_a["_url"], headers=dl_headers, cookies=cookie_dict, timeout=120)
+                    aresp = requests.get(best_a["_url"], headers=dl_headers, timeout=120)
                     with open(aud_path, "wb") as f:
                         f.write(aresp.content)
                     subprocess.run([ffmpeg, "-y", "-i", str(vid_path), "-i", str(aud_path), "-c", "copy", str(output_path)], capture_output=True, timeout=120)
@@ -206,8 +223,7 @@ class ContentIngestor:
             if not chosen:
                 return "No downloadable format found"
 
-            # Download muxed format
-            resp = requests.get(chosen["_url"], headers=dl_headers, cookies=cookie_dict, timeout=300)
+            resp = requests.get(chosen["_url"], headers=dl_headers, timeout=300)
             with open(output_path, "wb") as f:
                 f.write(resp.content)
 
