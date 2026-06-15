@@ -113,8 +113,7 @@ class ContentIngestor:
             output_template = str(output_dir / f"clip_{suffix}.%(ext)s")
 
             ydl_opts = {
-                "max_filesize": 500 * 1024 * 1024,
-                "format": "best[height<=720]",
+                "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
                 "outtmpl": output_template,
                 "noplaylist": True,
                 "quiet": True,
@@ -135,43 +134,22 @@ class ContentIngestor:
                     print("[Ingest] yt-dlp returned no info")
                     return None
 
-                # Try prepare_filename first
-                try:
-                    entries = info.get("entries") if info.get("_type") == "playlist" else None
-                    if entries:
-                        for entry in entries:
-                            fn = ydl.prepare_filename(entry)
-                            if fn:
-                                fp = Path(fn)
-                                if fp.exists() and fp.stat().st_size > 100000:
-                                    print(f"[Ingest] Downloaded: {fp.name}")
-                                    return fp
-                    else:
-                        fn = ydl.prepare_filename(info)
-                        if fn:
-                            fp = Path(fn)
-                            if fp.exists() and fp.stat().st_size > 100000:
-                                print(f"[Ingest] Downloaded: {fp.name}")
-                                return fp
-                except Exception:
-                    pass
-
-                # Fallback: glob by suffix
+                # Find the downloaded file
                 for f in output_dir.glob(f"clip_{suffix}.*"):
                     if f.suffix.lower() in (".mp4", ".webm", ".mkv", ".m4a") and f.stat().st_size > 100000:
                         print(f"[Ingest] Downloaded: {f.name}")
                         return f
 
-                # Fallback: most recent mp4
-                mp4s = [f for f in output_dir.glob("*.*") if f.suffix.lower() in (".mp4", ".webm", ".mkv") and f.stat().st_size > 100000]
-                if mp4s:
-                    latest = max(mp4s, key=lambda f: f.stat().st_mtime)
-                    age = time.time() - latest.stat().st_mtime
-                    if age < 120:
-                        print(f"[Ingest] Downloaded (recent): {latest.name}")
-                        return latest
+                # Fallback: most recent file in output_dir
+                recent = sorted(output_dir.glob("*.*"), key=lambda x: x.stat().st_mtime, reverse=True)
+                for f in recent:
+                    if f.suffix.lower() in (".mp4", ".webm", ".mkv", ".m4a") and f.stat().st_size > 100000:
+                        age = time.time() - f.stat().st_mtime
+                        if age < 60:
+                            print(f"[Ingest] Downloaded (recent): {f.name}")
+                            return f
 
-                print("[Ingest] File not found after download")
+                print(f"[Ingest] File not found after download (suffix={suffix})")
                 return None
 
         except Exception as e:
