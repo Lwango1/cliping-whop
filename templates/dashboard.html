@@ -187,7 +187,17 @@
                 <h4>Paramètres</h4>
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">Posts par jour</label><input id="postsPerDay" type="number" class="form-control" value="3"></div>
-                    <div class="col-md-8"><label class="form-label">Mots-clés Whop (JSON)</label><input id="campaignKeywords" class="form-control" value='["betway","world cup","canada"]'></div>
+                    <div class="col-md-4"><label class="form-label">Langue par défaut</label>
+                        <select id="settingsLanguage" class="form-control">
+                            <option value="fr">Francais</option>
+                            <option value="en">English</option>
+                            <option value="es">Espanol</option>
+                            <option value="de">Deutsch</option>
+                            <option value="pt">Portugues</option>
+                            <option value="it">Italiano</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">Mots-clés Whop (JSON)</label><input id="campaignKeywords" class="form-control" value='["betway","world cup","canada"]'></div>
                 </div>
                 <button class="btn btn-gold btn-sm mt-3" onclick="saveAccounts()">Enregistrer</button>
             </div>
@@ -302,6 +312,36 @@
                     <div class="col-md-1">
                         <label class="form-label">Score A</label>
                         <input id="ytScoreAway" class="form-control" placeholder="1">
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Langue de la video</label>
+                        <select id="ytLanguage" class="form-control">
+                            <option value="fr">Francais</option>
+                            <option value="en">English</option>
+                            <option value="es">Espanol</option>
+                            <option value="de">Deutsch</option>
+                            <option value="it">Italiano</option>
+                            <option value="pt">Portugues</option>
+                            <option value="nl">Nederlands</option>
+                            <option value="pl">Polski</option>
+                            <option value="ru">Russkiy</option>
+                            <option value="ja">Nihongo</option>
+                            <option value="ko">Hangug-eo</option>
+                            <option value="zh">Zhongwen</option>
+                            <option value="ar">Alarabia</option>
+                            <option value="tr">Turkce</option>
+                            <option value="sv">Svenska</option>
+                            <option value="da">Dansk</option>
+                            <option value="fi">Suomi</option>
+                            <option value="nb">Norsk</option>
+                            <option value="cs">Cestina</option>
+                            <option value="hu">Magyar</option>
+                            <option value="ro">Romana</option>
+                            <option value="th">Thai</option>
+                            <option value="vi">Tieng Viet</option>
+                        </select>
                     </div>
                 </div>
                 <button class="btn btn-gold" onclick="generateFromUrl()">🎬 Generer le clip</button>
@@ -599,6 +639,7 @@
             document.getElementById('fbPageId').value = me.facebook_page_id || '';
             document.getElementById('fbToken').value = me.facebook_access_token || '';
             document.getElementById('postsPerDay').value = me.posts_per_day || 3;
+            document.getElementById('settingsLanguage').value = me.target_language || 'fr';
             document.getElementById('campaignKeywords').value = me.campaign_keywords || '["betway"]';
         }
 
@@ -616,6 +657,7 @@
                 facebook_page_id: document.getElementById('fbPageId').value,
                 facebook_access_token: document.getElementById('fbToken').value,
                 posts_per_day: parseInt(document.getElementById('postsPerDay').value) || 3,
+                target_language: document.getElementById('settingsLanguage').value,
                 campaign_keywords: document.getElementById('campaignKeywords').value,
             };
             const r = await apiPut('/api/settings', data);
@@ -684,6 +726,7 @@
             const teamAway = document.getElementById('ytTeamAway').value.trim();
             const scoreHome = document.getElementById('ytScoreHome').value.trim();
             const scoreAway = document.getElementById('ytScoreAway').value.trim();
+            const language = document.getElementById('ytLanguage').value;
             if (!url) { document.getElementById('urlGenResult').innerHTML = '<span style="color:#f87171">Entrez une URL YouTube</span>'; return; }
 
             const res = document.getElementById('urlGenResult');
@@ -692,7 +735,7 @@
                 const r = await fetch('/api/generate-from-url', {
                     method: 'POST',
                     headers: getHeaders(),
-                    body: JSON.stringify({ url, start_time: start, duration, team_home: teamHome, team_away: teamAway, score_home: scoreHome, score_away: scoreAway }),
+                    body: JSON.stringify({ url, start_time: start, duration, team_home: teamHome, team_away: teamAway, score_home: scoreHome, score_away: scoreAway, target_language: language }),
                 });
                 if (!r.ok) {
                     let msg = `Erreur ${r.status}`;

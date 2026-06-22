@@ -1,4 +1,5 @@
 import json
+import random
 import time
 import hashlib
 import secrets
@@ -20,6 +21,8 @@ from modules.whop.auto_apply import WhopAutoApply
 from modules.content.ingest import ContentIngestor
 from modules.content.video_generator import VideoGenerator
 from modules.content.audio_generator import AudioGenerator
+from modules.content.translator import Translator
+from modules.content.templates import VIDEO_INTRO_TEMPLATES, VIDEO_OUTRO_TEMPLATES
 from scheduler import BotScheduler
 
 app = FastAPI(title="Clipping Whop", version="1.0.0")
@@ -310,11 +313,15 @@ class GenerateFromURLRequest(BaseModel):
     team_away: str = ""
     score_home: str = ""
     score_away: str = ""
+    target_language: str = "fr"
 
 
 @app.post("/api/generate-from-url")
 async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(get_current_user)):
     try:
+        translator = Translator(req.target_language)
+        tts_voice = translator.get_tts_voice()
+
         downloaded = await ContentIngestor.download_youtube_replay(
             req.url,
             max_duration=300,
@@ -324,6 +331,9 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
             raise HTTPException(400, f"Download failed: {downloaded}")
         if not downloaded:
             raise HTTPException(400, "Download returned no file")
+
+        intro_text = translator.translate(random.choice(VIDEO_INTRO_TEMPLATES)["text"])
+        outro_text = translator.translate(random.choice(VIDEO_OUTRO_TEMPLATES)["text"])
 
         clip = VideoGenerator.generate_pro_clip(
             input_video=downloaded,
@@ -337,13 +347,29 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
             add_ken_burns=True,
             add_color_grade=True,
             add_scoreboard=bool(req.team_home),
-            add_intro=False,
-            add_outro=False,
+            add_intro=True,
+            add_outro=True,
+            intro_text=intro_text,
+            outro_text=outro_text,
         )
         if not clip:
             raise HTTPException(500, "Failed to create clip")
 
-        vo_path, vo_text = AudioGenerator.generate_voiceover(output_name=f"vo_custom_{int(time.time())}")
+        vo_text = random.choice([
+            "What a goal from {player}! The crowd goes wild at the World Cup 2026!",
+            "Unbelievable save! This is why the World Cup is the biggest stage in football.",
+            "Canada making history at the World Cup! Can they go all the way?",
+            "The pressure is on! Every pass counts in this World Cup showdown.",
+            "That skill move was FILTHY! World Cup 2026 delivering the best football.",
+            "The World Cup brings the best football action. Who's your pick?",
+            "From the stands to the pitch, the energy is UNREAL at the World Cup!",
+            "World Cup 2026 - where legends are made. Subscribe for daily highlights!",
+        ]).format(player=req.team_home or "Canada")
+        vo_text = translator.translate(vo_text)
+
+        vo_path, _ = AudioGenerator.generate_voiceover(
+            text=vo_text, output_name=f"vo_custom_{int(time.time())}", voice=tts_voice,
+        )
         if vo_path and req.duration > 10:
             mixed = AudioGenerator.mix_audio_with_video(clip, vo_path, f"final_{int(time.time())}")
             if mixed:
