@@ -119,13 +119,18 @@ class ContentIngestor:
 
         try:
             # Load cookies from file
-            cookie_file = Path(__file__).parent.parent / "youtube_cookies.txt"
+            cookie_file = Path(__file__).parent.parent.parent / "youtube_cookies.txt"
             if not cookie_file.exists():
-                return "Cookies file not found"
+                print("[Ingest] Cookies file not found, trying yt-dlp without cookies")
+                return await ContentIngestor._ytdlp_download(query, None, output_path, output_dir, suffix)
 
             import http.cookiejar
             cj = http.cookiejar.MozillaCookieJar(str(cookie_file))
-            cj.load()
+            try:
+                cj.load()
+            except Exception as e:
+                print(f"[Ingest] Cookie load error: {e}, falling back to yt-dlp")
+                return await ContentIngestor._ytdlp_download(query, cookie_file, output_path, output_dir, suffix)
 
             sess = requests.Session()
             sess.cookies = cj
@@ -248,29 +253,24 @@ class ContentIngestor:
             from utils import get_ffmpeg_path
 
             ydl_opts = {
-                "format": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+                "format": "best[height<=720]/worst[height<=720]/best",
                 "outtmpl": str(output_path),
                 "noplaylist": True,
                 "quiet": True,
                 "no_warnings": True,
                 "ffmpeg_location": get_ffmpeg_path(),
                 "merge_output_format": "mp4",
-                "cookiefile": str(cookie_file),
                 "geo_bypass": True,
                 "geo_bypass_country": "US",
                 "throttled_rate": "500K",
-                "extractor_args": {
-                    "youtube": {
-                        "player_client": ["ios", "web_embedded", "android_embedded"],
-                        "skip": ["webpage", "dash", "hls"],
-                    }
-                },
                 "http_headers": {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.9",
                 },
             }
+            if cookie_file and Path(cookie_file).exists():
+                ydl_opts["cookiefile"] = str(cookie_file)
 
             def _run():
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
