@@ -286,6 +286,8 @@ class VideoGenerator:
         add_scoreboard: bool = False,
         add_intro: bool = False,
         add_outro: bool = False,
+        intro_text: Optional[str] = None,
+        outro_text: Optional[str] = None,
     ) -> Optional[Path]:
         output_path = PROCESSED_DIR / f"{output_name}.mp4"
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -299,7 +301,10 @@ class VideoGenerator:
             filter_parts.append(f"eq=contrast=1.25:saturation=1.35:brightness=0.05")
 
         if add_intro:
-            intro = random.choice(VIDEO_INTRO_TEMPLATES)
+            if intro_text:
+                intro = {"text": intro_text, "duration": 3}
+            else:
+                intro = random.choice(VIDEO_INTRO_TEMPLATES)
             filter_parts.append(
                 f"drawtext=text='{intro['text']}':"
                 f"fontsize=48:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:"

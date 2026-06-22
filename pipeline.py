@@ -8,7 +8,8 @@ from modules.content.ingest import ContentIngestor
 from modules.content.video_generator import VideoGenerator
 from modules.content.audio_generator import AudioGenerator
 from modules.content.image_generator import ImageGenerator
-from modules.content.templates import SOCIAL_CAPTIONS, HASHTAGS
+from modules.content.templates import SOCIAL_CAPTIONS, HASHTAGS, VIDEO_INTRO_TEMPLATES, VIDEO_OUTRO_TEMPLATES
+from modules.content.translator import Translator
 from modules.publishing.tiktok import TikTokPublisher
 from modules.publishing.youtube import YouTubePublisher
 from modules.publishing.instagram import InstagramPublisher
@@ -24,6 +25,7 @@ class ContentPipeline:
         self.video_gen = VideoGenerator()
         self.audio_gen = AudioGenerator()
         self.image_gen = ImageGenerator()
+        self.translator = Translator(user_cfg.target_language)
 
         self.tiktok = TikTokPublisher(user_cfg.tiktok)
         self.youtube = YouTubePublisher(user_cfg.youtube)
@@ -111,6 +113,9 @@ class ContentPipeline:
                 continue
 
             try:
+                intro_text = self.translator.translate(random.choice(VIDEO_INTRO_TEMPLATES)["text"])
+                outro_text = self.translator.translate(random.choice(VIDEO_OUTRO_TEMPLATES)["text"])
+
                 clip = self.video_gen.generate_pro_clip(
                     input_video=downloaded,
                     output_name=f"clip_{event.get('id', 'unknown')}",
@@ -125,12 +130,29 @@ class ContentPipeline:
                     add_scoreboard=True,
                     add_intro=True,
                     add_outro=True,
+                    intro_text=intro_text,
+                    outro_text=outro_text,
                 )
 
                 if clip:
                     try:
+                        voice_text = random.choice([
+                            "What a goal from {player}! The crowd goes wild at the World Cup 2026!",
+                            "Unbelievable save! This is why the World Cup is the biggest stage in football.",
+                            "Canada making history at the World Cup! Can they go all the way?",
+                            "The pressure is on! Every pass counts in this World Cup showdown.",
+                            "That skill move was FILTHY! World Cup 2026 delivering the best football.",
+                            "The World Cup brings the best football action. Who's your pick?",
+                            "From the stands to the pitch, the energy is UNREAL at the World Cup!",
+                            "World Cup 2026 - where legends are made. Subscribe for daily highlights!",
+                        ]).format(player="Canada")
+                        voice_text = self.translator.translate(voice_text)
+                        tts_voice = self.translator.get_tts_voice()
+
                         voiceover = self.audio_gen.generate_voiceover(
+                            text=voice_text,
                             output_name=f"vo_{event.get('id', 'unknown')}",
+                            voice=tts_voice,
                         )
                         if voiceover:
                             mixed = self.audio_gen.mix_audio_with_video(clip, voiceover)
@@ -165,30 +187,30 @@ class ContentPipeline:
         platforms = self._get_enabled_platforms()
 
         if "tiktok" in platforms:
-            caption = random.choice(SOCIAL_CAPTIONS["tiktok"])
+            caption = self.translator.translate(random.choice(SOCIAL_CAPTIONS["tiktok"]))
             if self.tiktok.login_via_session():
                 if self.tiktok.upload_video(video_path, caption, HASHTAGS["tiktok"]):
                     results["posts_published"] += 1
             time.sleep(5)
 
         if "youtube" in platforms:
-            title = f"{event_name} - World Cup 2026 Highlights #shorts"
-            desc = random.choice(SOCIAL_CAPTIONS["youtube_shorts"])
+            title = self.translator.translate(f"{event_name} - World Cup 2026 Highlights #shorts")
+            desc = self.translator.translate(random.choice(SOCIAL_CAPTIONS["youtube_shorts"]))
             if self.youtube.login():
                 if self.youtube.upload_short(video_path, title, desc, HASHTAGS["youtube"]):
                     results["posts_published"] += 1
             time.sleep(5)
 
         if "instagram" in platforms:
-            caption = random.choice(SOCIAL_CAPTIONS["instagram"])
+            caption = self.translator.translate(random.choice(SOCIAL_CAPTIONS["instagram"]))
             if self.instagram.login():
                 if self.instagram.upload_reel(video_path, caption, HASHTAGS["instagram"]):
                     results["posts_published"] += 1
             time.sleep(5)
 
         if "facebook" in platforms:
-            title = f"{event_name} - World Cup 2026"
-            desc = random.choice(SOCIAL_CAPTIONS["facebook"])
+            title = self.translator.translate(f"{event_name} - World Cup 2026")
+            desc = self.translator.translate(random.choice(SOCIAL_CAPTIONS["facebook"]))
             if self.facebook.login():
                 if self.facebook.upload_video(video_path, title, desc, HASHTAGS["facebook"]):
                     results["posts_published"] += 1
@@ -202,14 +224,14 @@ class ContentPipeline:
         event_name = event.get("name", "World Cup 2026")
 
         if "instagram" in platforms:
-            caption = random.choice(SOCIAL_CAPTIONS["instagram"])
+            caption = self.translator.translate(random.choice(SOCIAL_CAPTIONS["instagram"]))
             if self.instagram.login():
                 if self.instagram.upload_photo(image_path, caption, HASHTAGS["instagram"]):
                     results["posts_published"] += 1
             time.sleep(3)
 
         if "facebook" in platforms:
-            caption = random.choice(SOCIAL_CAPTIONS["facebook"])
+            caption = self.translator.translate(random.choice(SOCIAL_CAPTIONS["facebook"]))
             if self.facebook.login():
                 if self.facebook.upload_photo(image_path, caption, HASHTAGS["facebook"]):
                     results["posts_published"] += 1

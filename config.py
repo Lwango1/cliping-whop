@@ -51,6 +51,7 @@ class UserConfig(BaseModel):
     preferred_hours: list[int] = [10, 14, 18, 21]
     campaign_keywords: list[str] = ["world cup", "sports", "canada", "football"]
     content_sources: list[str] = ["youtube_replays", "sports_api"]
+    target_language: str = "fr"
     locale: str = "en-CA"
 
 
@@ -105,12 +106,23 @@ def init_user_interactive():
     fb_page_id = input("Facebook page_id (press Enter to skip): ").strip()
     fb_token = input("Facebook access_token (press Enter to skip): ").strip()
 
+    print("\n--- Language ---")
+    from modules.content.translator import LANGUAGE_NAMES, SUPPORTED_LANGUAGES
+    print("Available languages:")
+    for code in SUPPORTED_LANGUAGES:
+        print(f"  {code}: {LANGUAGE_NAMES[code]}")
+    lang = input(f"Target language [fr]: ").strip().lower() or "fr"
+    if lang not in SUPPORTED_LANGUAGES:
+        print(f"'{lang}' not supported, using English.")
+        lang = "en"
+
     user_cfg = UserConfig(
         whop=WhopConfig(email=whop_email, password=whop_password),
         tiktok=TikTokConfig(session_id=tiktok_session),
         youtube=YouTubeConfig(client_id=yt_client_id),
         instagram=InstagramConfig(username=ig_username, password=ig_password),
         facebook=FacebookConfig(page_id=fb_page_id, access_token=fb_token),
+        target_language=lang,
     )
 
     cfg.users[username] = user_cfg

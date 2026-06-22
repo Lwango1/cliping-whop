@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     posts_per_day INTEGER DEFAULT 3,
     campaign_keywords TEXT DEFAULT '["world cup","canada","football"]',
     content_sources TEXT DEFAULT '["youtube_replays","sports_api"]',
+    target_language TEXT DEFAULT 'fr',
     referral_code TEXT UNIQUE DEFAULT NULL,
     referred_by BIGINT DEFAULT NULL REFERENCES users(id)
 );

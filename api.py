@@ -89,6 +89,7 @@ def user_to_config(user: dict) -> UserConfig:
         posts_per_day=user.get("posts_per_day", 3),
         campaign_keywords=keywords,
         content_sources=sources,
+        target_language=user.get("target_language", "fr"),
     )
 
 
@@ -228,6 +229,7 @@ async def update_settings(data: dict, user: dict = Depends(get_current_user)):
             facebook=FacebookConfig(page_id=user.get("facebook_page_id", "") or data.get("facebook_page_id", ""), access_token=user.get("facebook_access_token", "") or data.get("facebook_access_token", "")),
             posts_per_day=data.get("posts_per_day", user.get("posts_per_day", 3)),
             campaign_keywords=data.get("campaign_keywords", user.get("campaign_keywords", ["world cup"])),
+            target_language=data.get("target_language", user.get("target_language", "en")),
         )
         cfg.users[user["username"]] = u
         cfg.active_user = user["username"]

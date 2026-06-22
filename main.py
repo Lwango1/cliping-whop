@@ -52,6 +52,9 @@ def cmd_status():
     print(f"  YouTube:   {'✅' if user.youtube.client_id else '❌'}")
     print(f"  Instagram: {'✅' if user.instagram.username else '❌'}")
     print(f"  Facebook:  {'✅' if user.facebook.page_id else '❌'}")
+    from modules.content.translator import LANGUAGE_NAMES
+    lang_name = LANGUAGE_NAMES.get(user.target_language, user.target_language)
+    print(f"  Language:  {lang_name} ({user.target_language})")
     print(f"  Posts/day: {user.posts_per_day}")
     print(f"  Keywords:  {', '.join(user.campaign_keywords)}")
 
