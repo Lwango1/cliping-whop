@@ -69,9 +69,9 @@ class WhopAutoApply:
     def _generate_apply_message(self, campaign: dict) -> str:
         return (
             "Hi team,\n\n"
-            "I specialize in creating high-engagement sports content for the Canadian market. "
-            "I can produce daily video clips, highlights, and promotional content "
-            "for the World Cup campaign across TikTok, YouTube, Instagram, and Facebook.\n\n"
+            "I specialize in creating high-engagement video content. "
+            "I can produce daily clips and promotional content "
+            "across TikTok, YouTube, Instagram, and Facebook.\n\n"
             "Looking forward to contributing!\n\nBest regards"
         )
 

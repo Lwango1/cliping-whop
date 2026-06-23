@@ -7,23 +7,23 @@ from utils import run_ffmpeg
 
 
 CAPTION_TEMPLATES = [
-    "What a goal from {player}! The crowd goes wild at the World Cup 2026!",
-    "Unbelievable save! This is why the World Cup is the biggest stage in football.",
-    "Canada making history at the World Cup! Can they go all the way?",
-    "The pressure is on! Every pass counts in this World Cup showdown.",
-    "That skill move was FILTHY! World Cup 2026 delivering the best football.",
-    "The World Cup brings the best football action. Who's your pick?",
-    "From the stands to the pitch, the energy is UNREAL at the World Cup!",
-    "World Cup 2026 - where legends are made. Subscribe for daily highlights!",
+    "This is absolutely incredible! You have to see this!",
+    "Wait till the end, it gets wild!",
+    "I can't believe this is real!",
+    "This moment was absolutely insane!",
+    "The best thing you'll see today!",
+    "This is too good to be true!",
+    "Absolutely mind-blowing!",
+    "You won't believe what happens next!",
 ]
 
 
 class AudioGenerator:
 
     @staticmethod
-    def generate_voiceover(text: Optional[str] = None, output_name: str = "voiceover", voice: str = "en-CA-LiamNeural") -> tuple:
+    def generate_voiceover(text: Optional[str] = None, output_name: str = "voiceover", voice: str = "en-US-ChristopherNeural") -> tuple:
         if not text:
-            text = random.choice(CAPTION_TEMPLATES).format(player="Canada")
+            text = random.choice(CAPTION_TEMPLATES)
 
         output_path = PROCESSED_DIR / "audio" / f"{output_name}.mp3"
         output_path.parent.mkdir(parents=True, exist_ok=True)

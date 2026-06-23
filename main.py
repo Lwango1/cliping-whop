@@ -50,8 +50,6 @@ def cmd_status():
     print(f"  Whop:      {'✅' if user.whop.email else '❌'} {user.whop.email}")
     print(f"  TikTok:    {'✅' if user.tiktok.session_id else '❌'}")
     print(f"  YouTube:   {'✅' if user.youtube.client_id else '❌'}")
-    print(f"  Instagram: {'✅' if user.instagram.username else '❌'}")
-    print(f"  Facebook:  {'✅' if user.facebook.page_id else '❌'}")
     from modules.content.translator import LANGUAGE_NAMES
     lang_name = LANGUAGE_NAMES.get(user.target_language, user.target_language)
     print(f"  Language:  {lang_name} ({user.target_language})")

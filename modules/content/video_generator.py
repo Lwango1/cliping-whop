@@ -205,42 +205,6 @@ class VideoGenerator:
             return None
 
     @staticmethod
-    def apply_scoreboard(
-        input_video: Path,
-        output_name: str = "scored",
-        team_home: str = "Canada",
-        team_away: str = "Opponent",
-        score_home: str = "0",
-        score_away: str = "0",
-        duration: float = 60,
-    ) -> Optional[Path]:
-        from modules.content.image_generator import ImageGenerator
-        overlay = ImageGenerator.create_video_overlay(team_home, team_away, score_home, score_away)
-        if not overlay:
-            return None
-
-        output_path = PROCESSED_DIR / f"{output_name}.mp4"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            run_ffmpeg([
-                "-y", "-i", str(input_video),
-                "-i", str(overlay),
-                "-filter_complex",
-                f"[0:v][1:v]overlay=10:H-h-10:format=auto,format=yuv420p[v]",
-                "-map", "[v]", "-map", "0:a",
-                "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-profile:v", "high",
-                "-c:a", "copy",
-                "-t", str(duration),
-                "-movflags", "+faststart",
-                str(output_path),
-            ], timeout=120)
-            print(f"[VideoGen] Scoreboard: {output_path.name}")
-            return output_path
-        except Exception as e:
-            print(f"[VideoGen] Scoreboard error: {e}")
-            return None
-
-    @staticmethod
     def apply_transition(
         video_a: Path,
         video_b: Path,
@@ -277,13 +241,8 @@ class VideoGenerator:
         output_name: str = "pro_clip",
         start_time: float = 0,
         duration: float = 60,
-        team_home: str = "",
-        team_away: str = "",
-        score_home: str = "",
-        score_away: str = "",
         add_ken_burns: bool = True,
         add_color_grade: bool = True,
-        add_scoreboard: bool = False,
         add_intro: bool = False,
         add_outro: bool = False,
         intro_text: Optional[str] = None,
@@ -340,16 +299,6 @@ class VideoGenerator:
             if kb:
                 current.unlink(missing_ok=True)
                 current = kb
-
-        if add_scoreboard and team_home:
-            scored = VideoGenerator.apply_scoreboard(
-                current, f"_pro_scored_{output_name}",
-                team_home, team_away, score_home, score_away,
-                duration=duration,
-            )
-            if scored:
-                current.unlink(missing_ok=True)
-                shutil.move(str(scored), str(current))
 
         return current if current.exists() else None
 

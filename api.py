@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from database import init_db, get_user_by_username, get_user_by_email, create_user, get_user_by_id, update_user, get_campaigns, save_campaign, get_content_log, log_content, save_token, get_token_data, delete_token, clean_expired_tokens, SUPABASE_URL, upload_file, list_files, get_file_url, delete_storage_file, SUPABASE_KEY, SUBSCRIPTION_PLANS, create_subscription, get_subscription, get_all_subscriptions, get_pending_subscriptions, activate_subscription, deactivate_subscription, get_referral_code, get_referrals, get_referral_earnings, get_user_by_referral_code, get_referral_commission
-from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, PROCESSED_DIR, RAW_DIR, load_config
+from config import UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, PROCESSED_DIR, RAW_DIR, load_config
 from pipeline import ContentPipeline
 from modules.whop.auto_apply import WhopAutoApply
 from modules.content.ingest import ContentIngestor
@@ -80,14 +80,6 @@ def user_to_config(user: dict) -> UserConfig:
             client_id=user.get("youtube_client_id", ""),
             client_secret=user.get("youtube_client_secret", ""),
             refresh_token=user.get("youtube_refresh_token", ""),
-        ),
-        instagram=InstagramConfig(
-            username=user.get("instagram_username", ""),
-            password=user.get("instagram_password", ""),
-        ),
-        facebook=FacebookConfig(
-            page_id=user.get("facebook_page_id", ""),
-            access_token=user.get("facebook_access_token", ""),
         ),
         posts_per_day=user.get("posts_per_day", 3),
         campaign_keywords=keywords,
@@ -217,7 +209,7 @@ async def get_me(user: dict = Depends(get_current_user)):
 async def update_settings(data: dict, user: dict = Depends(get_current_user)):
     update_user(user["id"], **data)
 
-    from config import AppConfig, UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, InstagramConfig, FacebookConfig, save_config, load_config
+    from config import AppConfig, UserConfig, WhopConfig, TikTokConfig, YouTubeConfig, save_config, load_config
     try:
         cfg = load_config()
         u = UserConfig(
@@ -228,8 +220,6 @@ async def update_settings(data: dict, user: dict = Depends(get_current_user)):
                 client_secret=user.get("youtube_client_secret", "") or data.get("youtube_client_secret", ""),
                 refresh_token=user.get("youtube_refresh_token", "") or data.get("youtube_refresh_token", ""),
             ),
-            instagram=InstagramConfig(username=user.get("instagram_username", "") or data.get("instagram_username", ""), password=user.get("instagram_password", "") or data.get("instagram_password", "")),
-            facebook=FacebookConfig(page_id=user.get("facebook_page_id", "") or data.get("facebook_page_id", ""), access_token=user.get("facebook_access_token", "") or data.get("facebook_access_token", "")),
             posts_per_day=data.get("posts_per_day", user.get("posts_per_day", 3)),
             campaign_keywords=data.get("campaign_keywords", user.get("campaign_keywords", ["world cup"])),
             target_language=data.get("target_language", user.get("target_language", "en")),
@@ -305,26 +295,23 @@ async def list_content_files(user: dict = Depends(get_current_user)):
     return files
 
 
-class GenerateFromURLRequest(BaseModel):
+class GenerateClipRequest(BaseModel):
     url: str
     start_time: float = 10
     duration: float = 120
-    team_home: str = ""
-    team_away: str = ""
-    score_home: str = ""
-    score_away: str = ""
+    num_clips: int = 1
     target_language: str = "fr"
 
 
 @app.post("/api/generate-from-url")
-async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(get_current_user)):
+async def generate_from_url(req: GenerateClipRequest, user: dict = Depends(get_current_user)):
     try:
         translator = Translator(req.target_language)
         tts_voice = translator.get_tts_voice()
 
         downloaded = await ContentIngestor.download_youtube_replay(
             req.url,
-            max_duration=300,
+            max_duration=req.num_clips * req.duration + 120,
             output_dir=RAW_DIR,
         )
         if isinstance(downloaded, str):
@@ -332,65 +319,70 @@ async def generate_from_url(req: GenerateFromURLRequest, user: dict = Depends(ge
         if not downloaded:
             raise HTTPException(400, "Download returned no file")
 
-        intro_text = translator.translate(random.choice(VIDEO_INTRO_TEMPLATES)["text"])
-        outro_text = translator.translate(random.choice(VIDEO_OUTRO_TEMPLATES)["text"])
+        total_duration = VideoGenerator.get_video_duration(downloaded)
+        clips_generated = []
 
-        clip = VideoGenerator.generate_pro_clip(
-            input_video=downloaded,
-            output_name=f"custom_{int(time.time())}",
-            start_time=req.start_time,
-            duration=req.duration,
-            team_home=req.team_home,
-            team_away=req.team_away,
-            score_home=req.score_home,
-            score_away=req.score_away,
-            add_ken_burns=True,
-            add_color_grade=True,
-            add_scoreboard=bool(req.team_home),
-            add_intro=True,
-            add_outro=True,
-            intro_text=intro_text,
-            outro_text=outro_text,
-        )
-        if not clip:
-            raise HTTPException(500, "Failed to create clip")
+        actual_num = min(req.num_clips, max(1, int((total_duration - req.start_time) // req.duration)))
 
-        vo_text = random.choice([
-            "What a goal from {player}! The crowd goes wild at the World Cup 2026!",
-            "Unbelievable save! This is why the World Cup is the biggest stage in football.",
-            "Canada making history at the World Cup! Can they go all the way?",
-            "The pressure is on! Every pass counts in this World Cup showdown.",
-            "That skill move was FILTHY! World Cup 2026 delivering the best football.",
-            "The World Cup brings the best football action. Who's your pick?",
-            "From the stands to the pitch, the energy is UNREAL at the World Cup!",
-            "World Cup 2026 - where legends are made. Subscribe for daily highlights!",
-        ]).format(player=req.team_home or "Canada")
-        vo_text = translator.translate(vo_text)
+        for i in range(actual_num):
+            start = req.start_time + (i * req.duration)
+            if start + req.duration > total_duration:
+                break
 
-        vo_path, _ = AudioGenerator.generate_voiceover(
-            text=vo_text, output_name=f"vo_custom_{int(time.time())}", voice=tts_voice,
-        )
-        if vo_path and req.duration > 10:
-            mixed = AudioGenerator.mix_audio_with_video(clip, vo_path, f"final_{int(time.time())}")
-            if mixed:
-                clip = mixed
+            intro_text = translator.translate(random.choice(VIDEO_INTRO_TEMPLATES)["text"])
+            outro_text = translator.translate(random.choice(VIDEO_OUTRO_TEMPLATES)["text"])
 
-        subtitled = VideoGenerator.add_subtitles(clip, vo_text, f"sub_{int(time.time())}", duration=req.duration)
-        if subtitled:
-            clip = subtitled
+            clip = VideoGenerator.generate_pro_clip(
+                input_video=downloaded,
+                output_name=f"custom_{int(time.time())}_{i+1}",
+                start_time=start,
+                duration=req.duration,
+                add_ken_burns=True,
+                add_color_grade=True,
+                add_intro=True,
+                add_outro=True,
+                intro_text=intro_text,
+                outro_text=outro_text,
+            )
+            if not clip:
+                continue
 
-        log_content(user["id"], f"Custom clip from URL", "video", "manual", "created", file_path=clip.name)
+            vo_text = translator.translate(random.choice([
+                "This is absolutely incredible! You have to see this!",
+                "Wait till the end, it gets wild!",
+                "I can't believe this is real!",
+                "This moment was absolutely insane!",
+                "The best thing you'll see today!",
+            ]))
+
+            vo_path, _ = AudioGenerator.generate_voiceover(
+                text=vo_text, output_name=f"vo_custom_{int(time.time())}_{i+1}", voice=tts_voice,
+            )
+            if vo_path and req.duration > 10:
+                mixed = AudioGenerator.mix_audio_with_video(clip, vo_path, f"final_{int(time.time())}_{i+1}")
+                if mixed:
+                    clip = mixed
+
+            subtitled = VideoGenerator.add_subtitles(clip, vo_text, f"sub_{int(time.time())}_{i+1}", duration=req.duration)
+            if subtitled:
+                clip = subtitled
+
+            clips_generated.append(clip)
+
+        if not clips_generated:
+            raise HTTPException(500, "Failed to create any clip")
+
+        log_content(user["id"], f"Generated {len(clips_generated)} clips from URL", "video", "manual", "created")
 
         for f in list(PROCESSED_DIR.glob("_pro_*.mp4")):
             f.unlink(missing_ok=True)
-        for f in list(PROCESSED_DIR.glob("custom_*.mp4")):
-            if f != clip:
-                f.unlink(missing_ok=True)
-        for f in list(PROCESSED_DIR.glob("final_*.mp4")):
-            if f != clip:
-                f.unlink(missing_ok=True)
 
-        return {"ok": True, "file": str(clip.name), "path": str(clip.relative_to(Path(__file__).parent).as_posix())}
+        clip_data = []
+        for c in clips_generated:
+            rel_path = str(c.relative_to(Path(__file__).parent).as_posix())
+            clip_data.append({"file": str(c.name), "path": rel_path})
+
+        return {"ok": True, "clips": clip_data, "count": len(clip_data)}
     except HTTPException:
         raise
     except Exception as e:

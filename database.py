@@ -81,8 +81,7 @@ def update_user(user_id: int, **kwargs):
     allowed = [
         "whop_email", "whop_password", "tiktok_session_id", "tiktok_csrf_token",
         "youtube_client_id", "youtube_client_secret", "youtube_refresh_token",
-        "instagram_username", "instagram_password", "facebook_page_id",
-        "facebook_access_token", "posts_per_day", "campaign_keywords", "content_sources"
+        "posts_per_day", "campaign_keywords"
     ]
     updates = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
     if not updates:

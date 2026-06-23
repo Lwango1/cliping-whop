@@ -107,7 +107,7 @@
     </div>
 
     <div class="sidebar">
-        <div class="logo"><span>⚽</span><span>Clipping Whop</span></div>
+        <div class="logo"><span>🎬</span><span>Clipping Whop</span></div>
         <div class="nav-item active" onclick="showPage('overview')"><span>📊</span><span>Vue d'ensemble</span></div>
         <div class="nav-item" onclick="showPage('content')"><span>🎬</span><span>Contenu</span></div>
         <div class="nav-item" onclick="showPage('actions')"><span>⚡</span><span>Actions</span></div>
@@ -168,22 +168,6 @@
                 <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
             </div>
             <div class="card">
-                <h4>Instagram</h4>
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6"><label class="form-label">Nom d'utilisateur</label><input id="igUsername" class="form-control"></div>
-                    <div class="col-md-6"><label class="form-label">Mot de passe</label><div class="pwd-wrapper"><input id="igPassword" class="form-control" type="password"><button class="pwd-toggle" onclick="togglePwd('igPassword',this)">👁️</button></div></div>
-                </div>
-                <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
-            </div>
-            <div class="card">
-                <h4>Facebook</h4>
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6"><label class="form-label">Page ID</label><input id="fbPageId" class="form-control"></div>
-                    <div class="col-md-6"><label class="form-label">Access Token</label><input id="fbToken" class="form-control"></div>
-                </div>
-                <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
-            </div>
-            <div class="card">
                 <h4>Paramètres</h4>
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">Posts par jour</label><input id="postsPerDay" type="number" class="form-control" value="3"></div>
@@ -197,7 +181,7 @@
                             <option value="it">Italiano</option>
                         </select>
                     </div>
-                    <div class="col-md-4"><label class="form-label">Mots-clés Whop (JSON)</label><input id="campaignKeywords" class="form-control" value='["betway","world cup","canada"]'></div>
+                    <div class="col-md-4"><label class="form-label">Mots-clés Whop (JSON)</label><input id="campaignKeywords" class="form-control" value='["content","video","trending"]'></div>
                 </div>
                 <button class="btn btn-gold btn-sm mt-3" onclick="saveAccounts()">Enregistrer</button>
             </div>
@@ -227,7 +211,7 @@
                                 <span style="color:#4ade80">3.</span> Creer les clips vides (decoupage, voix off, sous-titres)
                             </div>
                             <div style="display:flex;align-items:center;gap:10px;color:#8892b0;font-size:14px">
-                                <span style="color:#4ade80">4.</span> Publier sur TikTok, YouTube, Instagram, Facebook (si configures)
+                                <span style="color:#4ade80">4.</span> Publier sur TikTok et YouTube (si configures)
                             </div>
                         </div>
                         <button id="runPipelineBtn" class="btn btn-gold w-100" onclick="runPipeline()" style="padding:14px;font-size:16px">
@@ -281,7 +265,7 @@
             <h2>Contenu generer</h2>
 
             <div class="card">
-                <h4>Creer un clip a partir d'une URL YouTube</h4>
+                <h4>Generer des clips a partir d'une URL YouTube</h4>
                 <div class="row g-3 mb-3">
                     <div class="col-md-12">
                         <label class="form-label">URL de la video YouTube</label>
@@ -289,29 +273,17 @@
                     </div>
                 </div>
                 <div class="row g-3 mb-3">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label class="form-label">Debut (s)</label>
                         <input id="ytStartInput" type="number" class="form-control" value="10">
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Duree (s)</label>
+                    <div class="col-md-3">
+                        <label class="form-label">Duree par clip (s)</label>
                         <input id="ytDurationInput" type="number" class="form-control" value="120">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Equipe domicile (optionnel)</label>
-                        <input id="ytTeamHome" class="form-control" placeholder="Canada">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Equipe adverse (optionnel)</label>
-                        <input id="ytTeamAway" class="form-control" placeholder="Bresil">
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label">Score D</label>
-                        <input id="ytScoreHome" class="form-control" placeholder="2">
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label">Score A</label>
-                        <input id="ytScoreAway" class="form-control" placeholder="1">
+                        <label class="form-label">Nombre de clips</label>
+                        <input id="ytNumClips" type="number" class="form-control" value="1" min="1" max="20">
                     </div>
                 </div>
                 <div class="row g-3 mb-3">
@@ -634,10 +606,6 @@
             document.getElementById('ytClientId').value = me.youtube_client_id || '';
             document.getElementById('ytClientSecret').value = me.youtube_client_secret || '';
             document.getElementById('ytRefreshToken').value = me.youtube_refresh_token || '';
-            document.getElementById('igUsername').value = me.instagram_username || '';
-            document.getElementById('igPassword').value = me.instagram_password || '';
-            document.getElementById('fbPageId').value = me.facebook_page_id || '';
-            document.getElementById('fbToken').value = me.facebook_access_token || '';
             document.getElementById('postsPerDay').value = me.posts_per_day || 3;
             document.getElementById('settingsLanguage').value = me.target_language || 'fr';
             document.getElementById('campaignKeywords').value = me.campaign_keywords || '["betway"]';
@@ -652,10 +620,6 @@
                 youtube_client_id: document.getElementById('ytClientId').value,
                 youtube_client_secret: document.getElementById('ytClientSecret').value,
                 youtube_refresh_token: document.getElementById('ytRefreshToken').value,
-                instagram_username: document.getElementById('igUsername').value,
-                instagram_password: document.getElementById('igPassword').value,
-                facebook_page_id: document.getElementById('fbPageId').value,
-                facebook_access_token: document.getElementById('fbToken').value,
                 posts_per_day: parseInt(document.getElementById('postsPerDay').value) || 3,
                 target_language: document.getElementById('settingsLanguage').value,
                 campaign_keywords: document.getElementById('campaignKeywords').value,
@@ -722,10 +686,7 @@
             const url = document.getElementById('ytUrlInput').value.trim();
             const start = parseFloat(document.getElementById('ytStartInput').value) || 10;
             const duration = parseFloat(document.getElementById('ytDurationInput').value) || 120;
-            const teamHome = document.getElementById('ytTeamHome').value.trim();
-            const teamAway = document.getElementById('ytTeamAway').value.trim();
-            const scoreHome = document.getElementById('ytScoreHome').value.trim();
-            const scoreAway = document.getElementById('ytScoreAway').value.trim();
+            const numClips = parseInt(document.getElementById('ytNumClips').value) || 1;
             const language = document.getElementById('ytLanguage').value;
             if (!url) { document.getElementById('urlGenResult').innerHTML = '<span style="color:#f87171">Entrez une URL YouTube</span>'; return; }
 
@@ -735,7 +696,7 @@
                 const r = await fetch('/api/generate-from-url', {
                     method: 'POST',
                     headers: getHeaders(),
-                    body: JSON.stringify({ url, start_time: start, duration, team_home: teamHome, team_away: teamAway, score_home: scoreHome, score_away: scoreAway, target_language: language }),
+                    body: JSON.stringify({ url, start_time: start, duration, num_clips: numClips, target_language: language }),
                 });
                 if (!r.ok) {
                     let msg = `Erreur ${r.status}`;
@@ -745,8 +706,12 @@
                 }
                 const data = await r.json();
                 if (data.ok) {
-                    const downloadUrl = `/api/download?path=${encodeURIComponent(data.path)}&token=${TOKEN}`;
-                    res.innerHTML = `<span style="color:#4ade80">✅ Clip cree !</span> <a href="${downloadUrl}" download="${data.file}" style="color:#ffd700;font-weight:600;display:inline-block;margin-top:8px;padding:10px 20px;background:#1a2340;border:1px solid #ffd700;border-radius:8px;text-decoration:none">📥 Telecharger la video</a>`;
+                    let html = `<span style="color:#4ade80">✅ ${data.count} clip(s) cree(s) !</span><br>`;
+                    data.clips.forEach((clip, i) => {
+                        const downloadUrl = `/api/download?path=${encodeURIComponent(clip.path)}&token=${TOKEN}`;
+                        html += `<a href="${downloadUrl}" download="${clip.file}" style="color:#ffd700;font-weight:600;display:inline-block;margin-top:8px;margin-right:8px;padding:8px 16px;background:#1a2340;border:1px solid #ffd700;border-radius:8px;text-decoration:none">📥 Clip ${i+1}</a>`;
+                    });
+                    res.innerHTML = html;
                     loadContent();
                 } else {
                     res.innerHTML = `<span style="color:#f87171">Erreur: ${data.detail || 'inconnue'}</span>`;

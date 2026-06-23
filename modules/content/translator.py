@@ -1,5 +1,5 @@
 LANGUAGE_MAP = {
-    "en": "en-CA-LiamNeural",
+    "en": "en-US-ChristopherNeural",
     "fr": "fr-CA-AntoineNeural",
     "es": "es-ES-AlvaroNeural",
     "de": "de-DE-KillianNeural",
@@ -79,4 +79,4 @@ class Translator:
         return [self.translate(t) for t in texts]
 
     def get_tts_voice(self) -> str:
-        return LANGUAGE_MAP.get(self.target_language, "en-CA-LiamNeural")
+        return LANGUAGE_MAP.get(self.target_language, "en-US-ChristopherNeural")

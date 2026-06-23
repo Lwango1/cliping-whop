@@ -25,16 +25,6 @@ class YouTubeConfig(BaseModel):
     refresh_token: str = ""
 
 
-class InstagramConfig(BaseModel):
-    username: str = ""
-    password: str = ""
-
-
-class FacebookConfig(BaseModel):
-    page_id: str = ""
-    access_token: str = ""
-
-
 class WhopConfig(BaseModel):
     email: str = ""
     password: str = ""
@@ -45,14 +35,12 @@ class UserConfig(BaseModel):
     whop: WhopConfig = WhopConfig()
     tiktok: TikTokConfig = TikTokConfig()
     youtube: YouTubeConfig = YouTubeConfig()
-    instagram: InstagramConfig = InstagramConfig()
-    facebook: FacebookConfig = FacebookConfig()
     posts_per_day: int = 3
     preferred_hours: list[int] = [10, 14, 18, 21]
-    campaign_keywords: list[str] = ["world cup", "sports", "canada", "football"]
-    content_sources: list[str] = ["youtube_replays", "sports_api"]
+    campaign_keywords: list[str] = ["content", "video", "trending"]
+    content_sources: list[str] = ["youtube_replays"]
     target_language: str = "fr"
-    locale: str = "en-CA"
+    locale: str = "en-US"
 
 
 class AppConfig(BaseModel):
@@ -98,14 +86,6 @@ def init_user_interactive():
     print("\n--- YouTube (optional) ---")
     yt_client_id = input("YouTube client_id (press Enter to skip): ").strip()
 
-    print("\n--- Instagram (optional) ---")
-    ig_username = input("Instagram username (press Enter to skip): ").strip()
-    ig_password = input("Instagram password (press Enter to skip): ").strip()
-
-    print("\n--- Facebook (optional) ---")
-    fb_page_id = input("Facebook page_id (press Enter to skip): ").strip()
-    fb_token = input("Facebook access_token (press Enter to skip): ").strip()
-
     print("\n--- Language ---")
     from modules.content.translator import LANGUAGE_NAMES, SUPPORTED_LANGUAGES
     print("Available languages:")
@@ -120,8 +100,6 @@ def init_user_interactive():
         whop=WhopConfig(email=whop_email, password=whop_password),
         tiktok=TikTokConfig(session_id=tiktok_session),
         youtube=YouTubeConfig(client_id=yt_client_id),
-        instagram=InstagramConfig(username=ig_username, password=ig_password),
-        facebook=FacebookConfig(page_id=fb_page_id, access_token=fb_token),
         target_language=lang,
     )
 

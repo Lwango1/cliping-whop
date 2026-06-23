@@ -1,63 +1,45 @@
 VIDEO_INTRO_TEMPLATES = [
-    {
-        "text": "WORLD CUP 2026",
-        "overlay": "fire",
-        "duration": 3,
-        "style": "bold_center"
-    },
-    {
-        "text": "CANADA VS THE WORLD",
-        "duration": 2,
-        "style": "simple_center"
-    },
+    {"text": "Best Moments", "overlay": "fire", "duration": 3, "style": "bold_center"},
+    {"text": "You Won't Believe This!", "duration": 2, "style": "simple_center"},
 ]
 
 VIDEO_OUTRO_TEMPLATES = [
-    {
-        "text": "Subscribe for more!",
-        "duration": 2,
-        "style": "simple_center"
-    },
-    {
-        "text": "See you next match!",
-        "duration": 2,
-        "style": "simple_center"
-    },
+    {"text": "Subscribe for more!", "duration": 2, "style": "simple_center"},
+    {"text": "Thanks for watching!", "duration": 2, "style": "simple_center"},
 ]
 
 SOCIAL_CAPTIONS = {
     "tiktok": [
-        "World Cup 2026 is here! Who's winning it all? ⚽ #WorldCup #Canada",
-        "This moment was INSANE 🔥 #WorldCup #Football",
-        "CANADA at the World Cup - let's go! 🇨🇦⚽ #WorldCup2026",
+        "Check this out! 🔥 #Trending",
+        "This is absolutely INSANE 🤯",
+        "Wait for it... 💥",
     ],
     "youtube_shorts": [
-        "World Cup 2026 - Best moments #shorts",
-        "He did WHAT?! 🤯 World Cup 2026 highlights",
-        "Canada's journey - World Cup 2026 🇨🇦",
+        "Best moments you need to see #shorts",
+        "Wait till the end! 🤯 #shorts",
+        "This is too good 🔥 #shorts",
     ],
     "instagram": [
-        "This energy is unmatched ⚽🔥 World Cup 2026. Who's your pick? #WorldCup",
-        "The beautiful game. The biggest stage. #WorldCup2026",
-        "Every moment counts. #WorldCup",
+        "This energy is unmatched 🔥",
+        "You need to see this 👀",
+        "Absolutely incredible 💯",
     ],
     "facebook": [
-        "World Cup 2026 highlights! What a match! Who are you supporting?",
-        "The World Cup is heating up!",
-        "Incredible plays from today's match. Canada making us proud!",
+        "Check out these amazing moments!",
+        "You won't believe this!",
+        "Share with someone who needs to see this!",
     ],
 }
 
 HASHTAGS = {
-    "tiktok": ["#WorldCup", "#Canada", "#Football", "#Soccer", "#WorldCup2026", "#FIFA"],
-    "youtube": ["#WorldCup", "#Shorts", "#Canada", "#Football"],
-    "instagram": ["#WorldCup", "#Canada", "#Football", "#Soccer", "#WorldCup2026"],
-    "facebook": ["#WorldCup", "#Canada", "#Football"],
+    "tiktok": ["#Trending", "#Viral", "#FYP", "#MustWatch", "#BestMoments"],
+    "youtube": ["#Shorts", "#Trending", "#BestMoments", "#MustWatch"],
+    "instagram": ["#Trending", "#Viral", "#BestMoments", "#MustWatch"],
+    "facebook": ["#Trending", "#MustWatch", "#BestMoments"],
 }
 
 OVERLAY_ASSETS = {
     "fire": "fire_overlay.gif",
-    "canada_flag": "canada_flag.png",
 }
 
 THUMBNAIL_TEMPLATES = [
@@ -65,15 +47,7 @@ THUMBNAIL_TEMPLATES = [
         "name": "action_shot",
         "elements": [
             {"type": "background", "source": "frame_from_video"},
-            {"type": "text", "content": "WORLD CUP 2026", "font_size": 48, "position": "bottom_center", "color": "white", "stroke": "black"},
-        ]
-    },
-    {
-        "name": "score_display",
-        "elements": [
-            {"type": "background", "source": "gradient_dark"},
-            {"type": "text", "content": "{home_team} vs {away_team}", "font_size": 36, "position": "top_center"},
-            {"type": "text", "content": "{home_score} - {away_score}", "font_size": 64, "position": "center", "color": "yellow"},
+            {"type": "text", "content": "BEST MOMENTS", "font_size": 48, "position": "bottom_center", "color": "white", "stroke": "black"},
         ]
     },
 ]

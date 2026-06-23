@@ -62,8 +62,8 @@ class YouTubePublisher:
             "snippet": {
                 "title": title[:100],
                 "description": full_desc[:5000],
-                "tags": ["WorldCup", "Shorts"] + (hashtags or []),
-                "categoryId": "17",
+                "tags": ["Shorts"] + (hashtags or []),
+                "categoryId": "22",
             },
             "status": {
                 "privacyStatus": "public",
