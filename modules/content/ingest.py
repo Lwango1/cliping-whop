@@ -19,17 +19,22 @@ class ContentIngestor:
 
         is_url = query.startswith("http://") or query.startswith("https://")
         if not is_url:
-            return "Only direct YouTube URLs are supported"
-
-        import re
-        match = re.search(r"(?:v=|/v/|youtu\.be/|/shorts/)([a-zA-Z0-9_-]{11})", query)
-        if not match:
-            return "Could not extract video ID from URL"
-        video_id = match.group(1)
+            return "Only direct URLs are supported"
 
         import asyncio
         suffix = int(time.time())
         output_path = output_dir / f"clip_{suffix}.mp4"
+
+        import re
+        is_youtube = bool(re.search(r"(?:youtube\.com|youtu\.be|youtube\.com/shorts)", query))
+
+        if not is_youtube:
+            return await ContentIngestor._ytdlp_download(query, None, output_path, output_dir, suffix)
+
+        match = re.search(r"(?:v=|/v/|youtu\.be/|/shorts/)([a-zA-Z0-9_-]{11})", query)
+        if not match:
+            return await ContentIngestor._ytdlp_download(query, None, output_path, output_dir, suffix)
+        video_id = match.group(1)
 
         try:
             # Load cookies from file

@@ -320,14 +320,18 @@ async def generate_from_url(req: GenerateClipRequest, user: dict = Depends(get_c
             raise HTTPException(400, "Download returned no file")
 
         total_duration = VideoGenerator.get_video_duration(downloaded)
-        clips_generated = []
+        if total_duration <= 0:
+            raise HTTPException(400, "Could not determine video duration")
 
-        actual_num = min(req.num_clips, max(1, int((total_duration - req.start_time) // req.duration)))
+        available = total_duration - req.start_time
+        if available < req.duration:
+            raise HTTPException(400, f"Video too short ({total_duration:.0f}s). Need at least {req.start_time + req.duration:.0f}s for one {req.duration}s clip.")
+
+        actual_num = min(req.num_clips, int(available // req.duration))
+        clips_generated = []
 
         for i in range(actual_num):
             start = req.start_time + (i * req.duration)
-            if start + req.duration > total_duration:
-                break
 
             intro_text = translator.translate(random.choice(VIDEO_INTRO_TEMPLATES)["text"])
             outro_text = translator.translate(random.choice(VIDEO_OUTRO_TEMPLATES)["text"])

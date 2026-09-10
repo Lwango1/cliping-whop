@@ -1,4 +1,5 @@
 import random
+import re
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -119,9 +120,21 @@ class VideoGenerator:
                 "format=duration", "-of",
                 "default=noprint_wrappers=1:nokey=1", str(video_path),
             ])
-            return float(result.stdout.strip())
+            dur = float(result.stdout.strip())
+            if dur > 0:
+                return dur
         except Exception:
-            return 0
+            pass
+        try:
+            result = run_ffmpeg(["-i", str(video_path)], check=False, timeout=30)
+            import re
+            match = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", result.stderr.decode("utf-8", errors="replace"))
+            if match:
+                h, m, s = float(match.group(1)), float(match.group(2)), float(match.group(3))
+                return h * 3600 + m * 60 + s
+        except Exception:
+            pass
+        return 0
 
     @staticmethod
     def apply_color_grade(

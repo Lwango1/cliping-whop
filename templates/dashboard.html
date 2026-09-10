@@ -7,7 +7,7 @@
     <link rel="manifest" href="/assets/manifest.json">
     <link rel="icon" href="/assets/icons/icon-48x48.png" sizes="48x48">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192x192.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#ffd700">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -265,11 +265,11 @@
             <h2>Contenu generer</h2>
 
             <div class="card">
-                <h4>Generer des clips a partir d'une URL YouTube</h4>
+                <h4>Generer des clips a partir d'une URL video</h4>
                 <div class="row g-3 mb-3">
                     <div class="col-md-12">
-                        <label class="form-label">URL de la video YouTube</label>
-                        <input id="ytUrlInput" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
+                        <label class="form-label">URL de la video</label>
+                        <input id="ytUrlInput" class="form-control" placeholder="YouTube, TikTok, Dailymotion, etc.">
                     </div>
                 </div>
                 <div class="row g-3 mb-3">
@@ -688,7 +688,7 @@
             const duration = parseFloat(document.getElementById('ytDurationInput').value) || 120;
             const numClips = parseInt(document.getElementById('ytNumClips').value) || 1;
             const language = document.getElementById('ytLanguage').value;
-            if (!url) { document.getElementById('urlGenResult').innerHTML = '<span style="color:#f87171">Entrez une URL YouTube</span>'; return; }
+            if (!url) { document.getElementById('urlGenResult').innerHTML = '<span style="color:#f87171">Entrez une URL video</span>'; return; }
 
             const res = document.getElementById('urlGenResult');
             res.innerHTML = '<span style="color:#fbbf24">Telechargement et generation en cours...</span>';
