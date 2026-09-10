@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Depends, status, Request, Form
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -230,6 +230,42 @@ async def update_settings(data: dict, user: dict = Depends(get_current_user)):
     except Exception as e:
         print(f"[API] Config save error (non-blocking): {e}")
 
+    return {"ok": True}
+
+
+COOKIES_DIR = Path(__file__).parent / "cookies"
+
+@app.post("/api/cookies/upload")
+async def upload_cookies(platform: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    if platform not in ("netflix", "youtube"):
+        raise HTTPException(400, "Plateforme non supportee. Utilisez 'netflix' ou 'youtube'.")
+    COOKIES_DIR.mkdir(parents=True, exist_ok=True)
+    cookie_path = COOKIES_DIR / f"{platform}_cookies.txt"
+    content = await file.read()
+    cookie_path.write_bytes(content)
+    log_content(user["id"], f"Cookies {platform} uploades", "cookies", platform, "created")
+    return {"ok": True, "platform": platform, "filename": file.filename}
+
+
+@app.get("/api/cookies/status")
+async def cookies_status(user: dict = Depends(get_current_user)):
+    status = {}
+    for platform in ("netflix", "youtube"):
+        p = COOKIES_DIR / f"{platform}_cookies.txt"
+        if p.exists():
+            status[platform] = {"exists": True, "size": p.stat().st_size, "modified": p.stat().st_mtime}
+        else:
+            status[platform] = {"exists": False}
+    return status
+
+
+@app.delete("/api/cookies")
+async def delete_cookies(platform: str, user: dict = Depends(get_current_user)):
+    if platform not in ("netflix", "youtube"):
+        raise HTTPException(400, "Plateforme non supportee")
+    p = COOKIES_DIR / f"{platform}_cookies.txt"
+    if p.exists():
+        p.unlink()
     return {"ok": True}
 
 

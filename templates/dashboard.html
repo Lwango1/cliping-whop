@@ -168,6 +168,29 @@
                 <button class="btn btn-gold btn-sm" onclick="saveAccounts()">Enregistrer</button>
             </div>
             <div class="card">
+                <h4>Cookies (Netflix / YouTube)</h4>
+                <p style="color:#8892b0;font-size:13px;margin-bottom:12px">Exportez vos cookies depuis votre navigateur (extension "Get cookies.txt" ou "EditThisCookie") en format Netscape/Mozilla, puis uploadez-les ici.</p>
+                <div id="cookiesStatus" class="mb-3"></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Plateforme</label>
+                        <select id="cookiePlatform" class="form-control">
+                            <option value="netflix">Netflix</option>
+                            <option value="youtube">YouTube</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Fichier cookies (.txt)</label>
+                        <input id="cookieFile" type="file" class="form-control" accept=".txt">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <button class="btn btn-gold btn-sm" onclick="uploadCookies()">📤 Uploader les cookies</button>
+                    <button class="btn btn-ghost btn-sm" onclick="loadCookiesStatus()">🔄 Statut</button>
+                </div>
+                <div id="cookieUploadResult" class="mt-2" style="font-size:13px"></div>
+            </div>
+            <div class="card">
                 <h4>Paramètres</h4>
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">Posts par jour</label><input id="postsPerDay" type="number" class="form-control" value="3"></div>
@@ -609,6 +632,7 @@
             document.getElementById('postsPerDay').value = me.posts_per_day || 3;
             document.getElementById('settingsLanguage').value = me.target_language || 'fr';
             document.getElementById('campaignKeywords').value = me.campaign_keywords || '["betway"]';
+            loadCookiesStatus();
         }
 
         async function saveAccounts() {
@@ -626,6 +650,50 @@
             };
             const r = await apiPut('/api/settings', data);
             if (r && r.ok) { toast('Comptes enregistrés !'); } else { toast('Erreur', 'error'); }
+        }
+
+        // --- Cookies ---
+        async function loadCookiesStatus() {
+            const s = await apiGet('/api/cookies/status');
+            if (!s) return;
+            const el = document.getElementById('cookiesStatus');
+            let html = '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+            for (const [platform, info] of Object.entries(s)) {
+                if (info.exists) {
+                    const size = (info.size / 1024).toFixed(1);
+                    html += `<span class="badge-status badge-success">${platform}: ${size} KB</span>`;
+                } else {
+                    html += `<span class="badge-status badge-warning">${platform}: absent</span>`;
+                }
+            }
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        async function uploadCookies() {
+            const platform = document.getElementById('cookiePlatform').value;
+            const fileInput = document.getElementById('cookieFile');
+            const res = document.getElementById('cookieUploadResult');
+            if (!fileInput.files.length) { res.innerHTML = '<span style="color:#f87171">Selectionnez un fichier</span>'; return; }
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            res.innerHTML = '<span style="color:#fbbf24">Upload en cours...</span>';
+            try {
+                const r = await fetch(`/api/cookies/upload?platform=${platform}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${TOKEN}` },
+                    body: formData,
+                });
+                if (r.ok) {
+                    res.innerHTML = '<span style="color:#4ade80">✅ Cookies uploadés !</span>';
+                    loadCookiesStatus();
+                } else {
+                    const e = await r.json();
+                    res.innerHTML = `<span style="color:#f87171">${e.detail || 'Erreur'}</span>`;
+                }
+            } catch(e) {
+                res.innerHTML = `<span style="color:#f87171">Erreur: ${e.message}</span>`;
+            }
         }
 
         // --- Actions ---

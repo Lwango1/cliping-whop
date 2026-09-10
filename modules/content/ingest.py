@@ -26,7 +26,14 @@ class ContentIngestor:
         output_path = output_dir / f"clip_{suffix}.mp4"
 
         import re
+        is_netflix = bool(re.search(r"netflix\.com", query))
         is_youtube = bool(re.search(r"(?:youtube\.com|youtu\.be|youtube\.com/shorts)", query))
+
+        if is_netflix:
+            cookie_file = Path(__file__).parent.parent.parent / "cookies" / "netflix_cookies.txt"
+            if not cookie_file.exists():
+                return "Netflix requires cookies. Upload your Netflix cookies in Settings > Cookies."
+            return await ContentIngestor._ytdlp_download(query, cookie_file, output_path, output_dir, suffix)
 
         if not is_youtube:
             return await ContentIngestor._ytdlp_download(query, None, output_path, output_dir, suffix)
